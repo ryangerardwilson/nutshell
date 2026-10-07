@@ -27,7 +27,7 @@ func TestCustomPromptTransports(t *testing.T) {
 	if string(got) != "input" {
 		t.Fatal(string(got))
 	}
-	for _, a := range []Adapter{{}, {Command: []string{"tool"}, Prompt: "stdin"}, {Command: []string{"tool"}, UnsafeArgs: []string{"--unsafe"}, Prompt: "file"}} {
+	for _, a := range []Adapter{{}, {Command: []string{"./tool"}, Prompt: "stdin"}, {Command: []string{"tool"}, UnsafeArgs: []string{"--unsafe"}, Prompt: "file"}} {
 		if err := a.validate(); err == nil {
 			t.Fatalf("accepted %+v", a)
 		}

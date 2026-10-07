@@ -3,6 +3,8 @@ package main
 import (
 	"bytes"
 	"context"
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 	"time"
@@ -108,6 +110,34 @@ func TestOldFineTuneFlagGivesMigrationGuidance(t *testing.T) {
 		code := execute(context.Background(), []string{"-c", "grok", "-s", "src", flag}, &out, &errs)
 		if code != 2 || !strings.Contains(errs.String(), "replaced by -f") {
 			t.Fatalf("%d %s", code, errs.String())
+		}
+	}
+}
+
+func TestConfigCommandsDoNotInvokeProvider(t *testing.T) {
+	root := t.TempDir()
+	t.Setenv("XDG_CONFIG_HOME", root)
+	t.Setenv("PATH", "")
+	path := filepath.Join(root, "nutshell", "compilers.json")
+	for _, args := range [][]string{{"--help"}, {"--version"}, {"config", "path"}} {
+		var out, errs bytes.Buffer
+		if code := execute(context.Background(), args, &out, &errs); code != 0 {
+			t.Fatalf("%v: %d %s", args, code, errs.String())
+		}
+		if _, err := os.Stat(path); !os.IsNotExist(err) {
+			t.Fatalf("%v created config", args)
+		}
+	}
+	var out, errs bytes.Buffer
+	if code := execute(context.Background(), []string{"config", "init"}, &out, &errs); code != 0 || strings.TrimSpace(out.String()) != path {
+		t.Fatalf("%d %s %s", code, out.String(), errs.String())
+	}
+	if _, err := os.Stat(path); err != nil {
+		t.Fatal(err)
+	}
+	for _, args := range [][]string{{"config"}, {"config", "reset"}, {"config", "init", "extra"}} {
+		if code := execute(context.Background(), args, &out, &errs); code != 2 {
+			t.Fatalf("accepted %v", args)
 		}
 	}
 }

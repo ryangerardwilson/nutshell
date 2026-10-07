@@ -3,6 +3,24 @@
 Versions follow Semantic Versioning. Dates use YYYY-MM-DD. The matching Git tag
 has a `v` prefix; published tags are never moved.
 
+## [0.12.0] - 2026-10-08
+
+### Added
+- Versioned XDG `nutshell/compilers.json` for every compiler command, including
+  arbitrary user CLIs and wrappers, with stdin/file/argument prompt transports.
+- `config init` and `config path`, automatic first-use initialization, and editable
+  Codex, Grok and Claude Code starter entries with unattended full-permission flags.
+- Legacy `interpreters.json` migration preserving user entries and the original file.
+- Non-overwriting configuration initialization, including concurrent first use.
+
+### Changed
+- Removed provider-specific command dispatch and reserved names. Existing config
+  is authoritative; missing names never fall back to built-in commands.
+- Permission arguments can live directly in command argv. `unsafe_args` remains
+  optional for older adapters. Models and private profiles stay with the CLI.
+- Reinstalling Nutshell preserves user configuration; private wrappers are not
+  part of the public starter template.
+
 ## [0.11.0] - 2026-10-08
 
 ### Added

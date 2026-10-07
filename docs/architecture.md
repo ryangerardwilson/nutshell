@@ -25,10 +25,11 @@ entry + available .nut files       selected implementation (-s)
 
 1. Parse the CLI, load the bounded `.nut` bundle, validate destinations, and
    snapshot the selected implementation. Fine tuning requires existing source.
-2. Resolve the AI adapter and require `rgw-ast` on `PATH`.
+2. Load the named command from XDG compilers.json (initializing if absent) and
+   require its executable and `rgw-ast` on `PATH`.
 3. Create a private build directory under `/tmp`, copy source context, and write
    the shared compilation prompt.
-4. Start the AI with unattended full-permission settings and no model override.
+4. Start the AI with the configured argv and prompt transport.
    Read activity updates while its output goes to a temporary log.
 5. For fine tuning, validate fine-tune.json and reject conflicts or invalid reviews.
    Then parse the strict versioned build manifest and run its build/test commands.
@@ -38,6 +39,19 @@ entry + available .nut files       selected implementation (-s)
 
 The driver uses the Go standard library. It has no embedded model, editor,
 terminal emulator, or language-specific code generator.
+
+## Compiler configuration
+
+All names resolve through the user's version-1 `compilers.json`. The embedded
+`default-compilers.json` is an initialization template only: it is never consulted
+to fill missing names in an existing config. There is no provider-name switch.
+The driver honors an absolute XDG_CONFIG_HOME or falls back to ~/.config.
+
+Initialization validates and merges legacy interpreter entries if present, then
+publishes a completed temporary JSON file using a non-replacing hard link. Existing
+and concurrently created configurations remain untouched. Runtime resolution
+validates the config and resolves the executable before creating a build attempt.
+Installers do not modify this configuration. Private wrappers remain local entries.
 
 ## Agent contract
 
@@ -165,7 +179,9 @@ working files by convention; it does not restrict process access to the machine.
 | `main.go` | CLI options, cancellation, exit codes |
 | `progress.go` | Terminal bar and redirected activity output |
 | `internal/compiler/source.go` | Syntax-independent `.nut` discovery and validation |
-| `internal/compiler/provider.go` | Built-in and custom CLI adapters |
+| `internal/compiler/provider.go` | Generic configured command resolution and prompt transport |
+| `internal/compiler/config.go` | XDG paths, initialization and legacy migration |
+| `internal/compiler/default-compilers.json` | Editable starter template copied on first use |
 | `internal/compiler/prompt.go` | Shared instructions for compilation agents |
 | `internal/compiler/fine_tune.go` | Required conflict review validation and source diagnostics |
 | `internal/compiler/compiler.go` | Generation, build/test orchestration, result records |

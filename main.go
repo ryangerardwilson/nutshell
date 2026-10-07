@@ -23,10 +23,10 @@ var version = strings.TrimSpace(versionFile)
 
 const help = `nutshell — compile English-first .nut programs with your AI tool
 
-Usage: nutshell [main.nut] -c <codex|grok|claude|custom> -s <path> [-o output] [-f "change"] [-l minutes]
-       ns [main.nut] -c <codex|grok|claude|custom> -s <path> [-o output] [-f "change"] [-l minutes]
+Usage: nutshell [main.nut] -c <name> -s <path> [-o output] [-f "change"] [-l minutes]
+       ns [main.nut] -c <name> -s <path> [-o output] [-f "change"] [-l minutes]
 
-  -c, --compiler TOOL     AI compilation agent (required)
+  -c, --compiler NAME     Entry in compilers.json (required)
   -s, --source PATH       Implementation directory to read and update (required)
   -f, --fine-tune TEXT    Make a focused change to existing -s source
   -l, --limit MINUTES     Expected AI completion time (positive integer)
@@ -36,12 +36,14 @@ Usage: nutshell [main.nut] -c <codex|grok|claude|custom> -s <path> [-o output] [
   -v, --version           Show version
 
 Options work before or after the entry file. Default entry: main.nut.
-Compilation agents run unattended with full permissions and their default models.
+Starter commands run unattended with full permissions and their default models.
 The AI makes assumptions automatically; no clarification questions.
 Build work and logs stay under /tmp. Progress appears while it compiles.
 The directory selected by -s supplies context and receives updated source.
 Relative -s paths resolve from your current directory; its parent must exist.
-Other tools: ~/.config/nutshell/interpreters.json (respects XDG_CONFIG_HOME).
+Compiler commands: ~/.config/nutshell/compilers.json (respects XDG_CONFIG_HOME).
+Run nutshell config init to create editable defaults; config path prints the path.
+First compilation initializes a missing config. Existing entries are preserved.
 
 Fine tuning requires existing source and cannot override .nut instructions.
 Conflicts report source files and line numbers; .nut files remain unchanged.
@@ -129,7 +131,7 @@ func parse(args []string) (arguments, error) {
 		o.Entry, entrySeen = arg, true
 	}
 	if o.Interpreter == "" {
-		return o, fmt.Errorf("choose a compilation agent with -c codex, -c grok, -c claude, or a configured tool")
+		return o, fmt.Errorf("choose a configured compilation agent with -c <name>, e.g. -c codex")
 	}
 	if o.SourceDir == "" {
 		return o, fmt.Errorf("choose an implementation source directory with -s <path>, for example -s ./src")
@@ -138,6 +140,26 @@ func parse(args []string) (arguments, error) {
 }
 
 func execute(ctx context.Context, args []string, out, errOut io.Writer) int {
+	if len(args) > 0 && args[0] == "config" {
+		if len(args) != 2 || (args[1] != "init" && args[1] != "path") {
+			fmt.Fprintln(errOut, "Usage: nutshell config <init|path>")
+			return 2
+		}
+		var path string
+		var err error
+		if args[1] == "init" {
+			path, err = compiler.InitConfig()
+		} else {
+			path, err = compiler.ConfigPath()
+		}
+		if err != nil {
+			fmt.Fprintf(errOut, "nutshell: %v\n", err)
+			return 1
+		}
+		fmt.Fprintln(out, path)
+		return 0
+	}
+
 	o, err := parse(args)
 	if err != nil {
 		fmt.Fprintf(errOut, "nutshell: %v\nRun nutshell --help for usage.\n", err)

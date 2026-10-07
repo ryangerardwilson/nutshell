@@ -14,43 +14,26 @@ import (
 // Adapter commands are argv, never implicitly passed through a shell.
 type Adapter struct {
 	Command    []string `json:"command"`
-	UnsafeArgs []string `json:"unsafe_args"`
+	UnsafeArgs []string `json:"unsafe_args,omitempty"`
 	Prompt     string   `json:"prompt"`
 }
 
 func Resolve(name string) (Adapter, error) {
-	var a Adapter
-	switch name {
-	case "codex":
-		a = Adapter{[]string{"codex", "exec", "--skip-git-repo-check", "--ephemeral", "--color", "never", "-"}, []string{"--dangerously-bypass-approvals-and-sandbox"}, "stdin"}
-	case "grok":
-		a = Adapter{[]string{"grok", "--no-plan", "--prompt-file", "{prompt_file}"}, []string{"--always-approve", "--sandbox", "off"}, "file"}
-	case "claude":
-		a = Adapter{[]string{"claude", "--print", "--output-format", "text", "--no-session-persistence"}, []string{"--dangerously-skip-permissions"}, "stdin"}
-	default:
-		dir, err := os.UserConfigDir()
-		if err != nil {
-			return a, err
-		}
-		path := filepath.Join(dir, "nutshell", "interpreters.json")
-		var config struct {
-			Interpreters map[string]Adapter `json:"interpreters"`
-		}
-		if err := readJSON(path, &config); err != nil {
-			return a, fmt.Errorf("unknown compilation agent %q; configure it in %s: %w", name, path, err)
-		}
-		var ok bool
-		a, ok = config.Interpreters[name]
-		if !ok {
-			return a, fmt.Errorf("compilation agent %q is not configured in %s", name, path)
-		}
+	path, err := InitConfig()
+	if err != nil {
+		return Adapter{}, err
 	}
-	if err := a.validate(); err != nil {
-		return a, fmt.Errorf("compilation agent %s: %w", name, err)
+	config, err := readCompilerConfig(path)
+	if err != nil {
+		return Adapter{}, err
+	}
+	a, ok := config.Compilers[name]
+	if !ok {
+		return Adapter{}, fmt.Errorf("compiler %q is not configured; add it to %s", name, path)
 	}
 	resolved, err := exec.LookPath(a.Command[0])
 	if err != nil {
-		return a, fmt.Errorf("compilation agent %q is not installed or not on PATH: %w", a.Command[0], err)
+		return a, fmt.Errorf("compiler %q in %s: executable %q is not installed or not on PATH: %w", name, path, a.Command[0], err)
 	}
 	a.Command[0] = resolved
 	return a, nil
@@ -60,8 +43,13 @@ func (a Adapter) validate() error {
 	if len(a.Command) == 0 || a.Command[0] == "" {
 		return fmt.Errorf("command must be a nonempty argv array")
 	}
-	if len(a.UnsafeArgs) == 0 {
-		return fmt.Errorf("unsafe_args must explicitly specify the tool's unattended full-permission flags")
+	if strings.ContainsAny(a.Command[0], `/\`) && !filepath.IsAbs(a.Command[0]) {
+		return fmt.Errorf("command executable must be a PATH name or absolute path (no relative paths or ~ expansion)")
+	}
+	for _, arg := range append(append([]string{}, a.Command...), a.UnsafeArgs...) {
+		if strings.ContainsRune(arg, 0) {
+			return fmt.Errorf("command arguments cannot contain NUL")
+		}
 	}
 	switch a.Prompt {
 	case "stdin":

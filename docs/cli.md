@@ -165,21 +165,33 @@ separately; the binary no longer serves as their archive.
 
 ## Compilation agents
 
-Built-ins run unattended with full permissions by default, as requested by the
-language's workflow. These settings apply to the invoked session. Nutshell does
-not rewrite your AI tool's global configuration or select a model.
+All compiler commands live in `compilers.json`. Use an absolute `XDG_CONFIG_HOME`
+for `$XDG_CONFIG_HOME/nutshell/compilers.json`; otherwise the path is
+`~/.config/nutshell/compilers.json`. Empty or relative XDG values use that fallback,
+as specified by the [XDG base directory standard](https://specifications.freedesktop.org/basedir/latest/).
 
-| Tool | Invocation settings |
+```sh
+ns config path   # print the effective path without creating anything
+ns config init   # create editable starter entries if the file is absent
+```
+
+The first compilation also initializes a missing file. The starter template
+contains `codex`, `grok`, and `claude` (Claude Code), using unattended full-permission
+flags and each CLI's default model. It is a starting point, not a runtime fallback.
+All names can be changed, overridden or deleted; Nutshell executes the selected
+entry exactly as configured. Reinstallation never resets your file. Help and
+version do not initialize it. No providers, credentials or skills are installed.
+
+| Starter name | Invocation settings |
 | --- | --- |
-| Codex | `exec`, `--dangerously-bypass-approvals-and-sandbox`, `--skip-git-repo-check`, `--ephemeral`; prompt on stdin |
-| Grok | `--always-approve --sandbox off --no-plan --prompt-file …` |
-| Claude | `--print --dangerously-skip-permissions --no-session-persistence`; prompt on stdin |
+| `codex` | `exec --dangerously-bypass-approvals-and-sandbox --skip-git-repo-check --ephemeral --color never -`; prompt on stdin |
+| `grok` | `--always-approve --sandbox off --no-plan --prompt-file …` |
+| `claude` | `--print --dangerously-skip-permissions --output-format text --no-session-persistence`; prompt on stdin |
 
-Each tool keeps its own configured default model. Authentication, organization
-policies and provider behavior still belong to that tool. Build directories are
-separate working directories, not permission sandboxes. Generated commands also
-run with the current user's permissions. `GOWORK=off` keeps generated Go modules
-independent of an enclosing Go workspace.
+Authentication, model profiles and provider policies remain with the CLI. Build
+directories are separate working directories, not permission sandboxes. Generated
+commands run with the current user's permissions. `GOWORK=off` keeps generated Go
+modules independent of an enclosing workspace.
 
 Every compiler receives a mandatory `rgw-ast` workflow: check status against the
 temporary `src/`, trace existing code before changes, inspect with bounded reads,
@@ -195,29 +207,49 @@ Adapter references: [Codex CLI](https://developers.openai.com/codex/cli/referenc
 [Grok sandbox profiles](https://docs.x.ai/build/features/sandbox).
 Installed CLI help is the source for the tested flag spelling.
 
-Add a different tool in `~/.config/nutshell/interpreters.json` (or
-`$XDG_CONFIG_HOME/nutshell/interpreters.json`):
+Add a tool to the `compilers` object in your file, for example:
 
 ```json
 {
-  "interpreters": {
+  "version": 1,
+  "compilers": {
     "my-ai": {
-      "command": ["my-ai-cli", "generate", "{unsafe_args}", "--prompt-file", "{prompt_file}"],
-      "unsafe_args": ["--the-tools-real-full-permission-flag"],
+      "command": ["my-ai-cli", "generate", "--its-yolo-flag", "--prompt-file", "{prompt_file}"],
       "prompt": "file"
+    },
+    "my-wrapper": {
+      "command": ["/absolute/path/to/my-wrapper", "exec", "-"],
+      "prompt": "stdin"
     }
   }
 }
 ```
 
-Replace that example command and permission flag with your tool's documented
-ones, then use `-c my-ai`. `unsafe_args` is explicit and nonempty: there is no
-universal unsafe flag. Its arguments replace the `{unsafe_args}` token in `command`,
-or are inserted immediately after the executable if that token is absent.
-Transport can be `stdin`, `file` with `{prompt_file}`, or `argument` with `{prompt}`.
-Nutshell executes argv directly, without adding shell interpolation.
-Built-in names are reserved. Custom adapters are responsible for preserving
-their tool's default model.
+Replace the example flags with your tool's actual unattended options. The example
+shows a complete file; merge entries into your existing map to keep its other
+compilers. Select any entry with `-c my-ai` or `-c my-wrapper`. User-specific wrappers
+and profiles belong here, not in Nutshell's code or shipped defaults.
+
+`command` is an argv array, not a shell command string. Its executable must be a
+name on `PATH` or an absolute path. There is no automatic shell, `~`, or environment
+variable expansion. Paths with spaces work as one array element. Arguments are
+passed literally except for the documented prompt placeholders:
+
+- `stdin`: the complete compilation prompt is piped to standard input.
+- `file`: `{prompt_file}` is replaced with the temporary prompt file path.
+- `argument`: `{prompt}` is replaced with the complete prompt as argument text.
+
+`unsafe_args` is optional for compatibility with older adapters. When supplied,
+its arguments replace a standalone `{unsafe_args}` token, or are inserted after
+the executable if that token is absent. Permission flags can instead be written
+directly in `command`; wrappers that already set permissions need no separate flags.
+Nutshell neither appends provider-specific options nor selects a model at runtime.
+Unknown names and invalid definitions fail with the configuration path.
+
+If only the old `interpreters.json` exists, initialization copies its entries into
+the new versioned `compilers` map alongside starter defaults. User entries win name
+collisions. The legacy file stays untouched. Invalid legacy data stops migration;
+an existing `compilers.json` always takes precedence and is never silently reset.
 
 ## What you get
 

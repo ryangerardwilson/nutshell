@@ -8,7 +8,10 @@ source. All supplied .nut instructions must be reviewed first; conflicts cannot
 be overridden. The driver requires a validated fine-tune.json review. -l / --limit
 sets an AI time expectation in minutes; --timeout remains the hard cutoff.
 Generated executables carry no
-Nutshell provenance resource. See docs/cli.md for precedence and migration.
+Nutshell provenance resource. Compiler commands are user-owned in XDG
+compilers.json; default-compilers.json is only a first-use template. Do not add
+provider-specific runtime branches or private wrappers to the defaults.
+See docs/cli.md for configuration, precedence and migration.
 
 ## OpenSpec
 

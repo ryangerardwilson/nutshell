@@ -36,8 +36,8 @@ func fake(t *testing.T, body string) (string, string) {
 	}
 	config := t.TempDir()
 	t.Setenv("XDG_CONFIG_HOME", config)
-	data, _ := json.Marshal(map[string]any{"interpreters": map[string]Adapter{"fake": {Command: []string{tool}, UnsafeArgs: []string{"--unsafe"}, Prompt: "stdin"}}})
-	put(t, filepath.Join(config, "nutshell", "interpreters.json"), string(data))
+	data, _ := json.Marshal(map[string]any{"version": 1, "compilers": map[string]Adapter{"fake": {Command: []string{tool}, UnsafeArgs: []string{"--unsafe"}, Prompt: "stdin"}}})
+	put(t, filepath.Join(config, "nutshell", "compilers.json"), string(data))
 	return dir, entry
 }
 
@@ -259,7 +259,8 @@ func TestCancellation(t *testing.T) {
 	}
 }
 
-func TestBuiltInAdapters(t *testing.T) {
+func TestStarterAdapters(t *testing.T) {
+	t.Setenv("XDG_CONFIG_HOME", t.TempDir())
 	dir := t.TempDir()
 	for _, name := range []string{"codex", "grok", "claude"} {
 		put(t, filepath.Join(dir, name), "#!/bin/sh\nexit 0\n")

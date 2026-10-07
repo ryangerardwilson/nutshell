@@ -44,7 +44,21 @@ nutshell main.nut -c codex -s ./src -o greet
 ```
 
 Use `-c grok`, `-c claude`, or [configure another CLI](docs/cli.md#compilation-agents).
-There is no prescribed model. Each tool uses its configured default.
+There is no prescribed model. Starter commands use each tool's configured default.
+
+Compiler commands belong to you:
+
+```sh
+ns config init
+ns config path
+```
+
+Edit `~/.config/nutshell/compilers.json` (or the absolute `XDG_CONFIG_HOME` equivalent)
+to add any CLI or wrapper and select it with `-c <name>`. Starter entries are Codex,
+Grok and Claude Code, with unattended full-permission settings. Every name and
+command is editable; there are no reserved providers or hidden runtime fallbacks.
+The first compilation creates a missing config automatically. Existing settings
+are preserved, including during upgrades. See the [config schema](docs/cli.md#compilation-agents).
 
 The local installer also provides `ns`, a short name for the same executable:
 
@@ -60,7 +74,7 @@ the AI is instructed to adapt the existing implementation, including manual edit
 
 ## Install
 
-Nutshell is early software. This checkout is **0.11.0**; the latest tagged release
+Nutshell is early software. This checkout is **0.12.0**; the latest tagged release
 is **0.7.0**. Linux is the primary tested host.
 
 Install with Go 1.26 or newer:
@@ -172,7 +186,7 @@ After verification, Nutshell publishes the executable and the source selected by
 `-s`. Failed builds preserve the previous outputs. Concurrent source edits stop
 publication so a long compile does not overwrite newer work.
 
-**AI compilers run unattended with full permissions by default.** `/tmp` is a
+**Starter compiler commands run unattended with full permissions.** `/tmp` is a
 working directory, not a security sandbox. The AI and generated build commands
 can act with your user's permissions. Compile trusted programs in an environment
 whose access you are prepared to give the agent. See the

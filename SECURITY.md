@@ -1,6 +1,7 @@
 # Security
 
-Nutshell invokes an AI CLI with unattended, full-permission settings. The CLI and
+Nutshell runs commands from user-owned compilers.json. Starter entries use
+unattended, full-permission settings; custom entries define their own flags. The CLI and
 generated build/test commands run with the current user's permissions. A private
 `/tmp` directory organizes build work; it is not a sandbox. The driver does not
 guarantee that an agent follows every instruction in its prompt.

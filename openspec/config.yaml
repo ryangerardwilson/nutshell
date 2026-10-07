@@ -6,7 +6,8 @@ context: |
   implementation language and produces source, tests and a native build manifest.
   All development happens in /tmp. The user selects the compiler with -c and
   implementation context/output with -s. Compilation is unattended, using the
-  provider's default model and full permissions. Agents must use rgw-ast.
+  configured argv and prompt transport from XDG compilers.json. Starter entries
+  use default models and full permissions. Agents must use rgw-ast.
   Product truth lives in this repository, independent of any parent workspace.
   See README.md, docs/language.md, docs/cli.md and docs/architecture.md.
 
