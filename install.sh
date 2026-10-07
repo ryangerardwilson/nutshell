@@ -18,14 +18,32 @@ if [[ ! -f go.mod || ! -f VERSION ]] || ! grep -qx 'module github.com/ryangerard
 fi
 install_dir="${NUTSHELL_INSTALL_DIR:-$HOME/.local/bin}"
 mkdir -p -- "$install_dir"
+install_dir="$(cd -- "$install_dir" && pwd)"
+check_alias() {
+  if [[ -e "$install_dir/ns" || -L "$install_dir/ns" ]]; then
+    if [[ -L "$install_dir/ns" ]]; then
+      alias_target="$(readlink -- "$install_dir/ns")"
+      if [[ "$alias_target" == nutshell || "$alias_target" == "$install_dir/nutshell" ]]; then
+        return
+      fi
+    fi
+    printf 'Refusing to replace unrelated command %s; move it before installing Nutshell.\n' "$install_dir/ns" >&2
+    exit 1
+  fi
+}
+check_alias
 build_file="$(mktemp "$install_dir/.nutshell-install-XXXXXX")"
 trap 'rm -f -- "$build_file"' EXIT
 GOWORK=off go build -trimpath -o "$build_file" .
 chmod 755 "$build_file"
 # Inspect the staged executable before replacing a working installation.
 "$build_file" --version
+check_alias
 mv -f -- "$build_file" "$install_dir/nutshell"
-printf 'Installed %s\n' "$install_dir/nutshell"
+if [[ ! -L "$install_dir/ns" ]]; then
+  ln -s nutshell "$install_dir/ns"
+fi
+printf 'Installed %s and %s\n' "$install_dir/nutshell" "$install_dir/ns"
 case ":$PATH:" in
   *":$install_dir:"*) ;;
   *) printf 'Add %s to PATH to run nutshell.\n' "$install_dir" ;;

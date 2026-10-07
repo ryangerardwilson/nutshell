@@ -23,6 +23,7 @@ var version = strings.TrimSpace(versionFile)
 const help = `nutshell — compile English-first .nut programs with your AI tool
 
 Usage: nutshell [main.nut] -c <codex|grok|claude|custom> -s <path> [-o output]
+       ns [main.nut] -c <codex|grok|claude|custom> -s <path> [-o output]
 
   -c, --compiler TOOL     AI compilation agent (required)
   -s, --source PATH       Implementation directory to read and update (required)

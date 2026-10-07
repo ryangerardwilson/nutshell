@@ -59,6 +59,15 @@ directory must exist. Standard output contains the final executable path;
 a compact progress display goes to standard error. Raw AI and build output stay
 in temporary logs. There is no question-and-answer phase.
 
+The local installer also provides `ns` as a short command. For example:
+
+```sh
+ns main.nut -c codex -s ./src
+```
+
+Both names run the same binary with the same arguments. For Go installations,
+see the [one-time alias setup](releases.md#the-ns-command).
+
 ## The language
 
 Use English to describe observable behavior, data, rules, examples, and errors.

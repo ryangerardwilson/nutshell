@@ -46,13 +46,22 @@ nutshell main.nut -c codex -s ./src -o greet
 Use `-c grok`, `-c claude`, or [configure another CLI](docs/cli.md#compilation-agents).
 There is no prescribed model. Each tool uses its configured default.
 
+The local installer also provides `ns`, a short name for the same executable:
+
+```sh
+ns main.nut -c codex -s ./src -o greet
+```
+
+For a Go-installed binary, see the [one-time alias setup](docs/releases.md#the-ns-command).
+
 `-s ./src` is explicit: that directory supplies existing implementation context
 and receives the updated code. Edit your `.nut` file, run the same command, and
 the AI is instructed to adapt the existing implementation, including manual edits.
 
 ## Install
 
-Nutshell is early software, currently **0.7.0**. Linux is the primary tested host.
+Nutshell is early software. This checkout is **0.8.0**; the latest tagged release
+is **0.7.0**. Linux is the primary tested host.
 
 Install with Go 1.26 or newer:
 
@@ -62,7 +71,7 @@ go install github.com/ryangerardwilson/nutshell@latest
 
 Add `$(go env GOPATH)/bin` to `PATH` (or your `GOBIN` if set). To install directly
 into `~/.local/bin`, prefix the command with `GOBIN="$HOME/.local/bin"`.
-Use `@v0.7.0` to pin this release; repeat `@latest` to upgrade.
+Use `@v0.7.0` to pin the latest tagged release; repeat `@latest` to upgrade.
 
 For local development, run `./install.sh from "$PWD"` inside the checkout. This
 builds your current source and installs into `~/.local/bin`, or the directory set

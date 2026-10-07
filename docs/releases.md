@@ -25,6 +25,26 @@ The same command with an older published tag is the rollback path. Installation
 builds the Go driver; compiling `.nut` programs still requires an authenticated AI
 CLI and `rgw-ast`. No command here installs providers, credentials, skills or plugins.
 
+## The ns command
+
+The local installer provides both `nutshell` and `ns`. `ns` is a relative symlink
+beside `nutshell`, so every local upgrade automatically updates both commands.
+They accept identical flags and both report `nutshell X.Y.Z` for `--version`.
+The installer refuses to overwrite an unrelated existing `ns` file or link.
+
+Go's installer creates only the package-named `nutshell` binary. After using Go
+install, add the short command once on Linux/macOS:
+
+```sh
+nutshell_bin_dir="${GOBIN:-$(go env GOPATH)/bin}"
+ln -s nutshell "$nutshell_bin_dir/ns"
+```
+
+Use the actual installation directory if you overrode GOBIN for one command, for
+example `ln -s nutshell "$HOME/.local/bin/ns"`. The link stays valid when the
+binary is upgraded. `ln -s` refuses an existing path; do not force it over another
+program. No shell alias or shell configuration is needed.
+
 ## Local development installation
 
 After completing a feature or fix, run the checks and install the checkout you
@@ -36,6 +56,7 @@ GOWORK=off go vet ./...
 ./scripts/check-release.sh
 ./install.sh from "$PWD"
 "${NUTSHELL_INSTALL_DIR:-$HOME/.local/bin}/nutshell" --version
+"${NUTSHELL_INSTALL_DIR:-$HOME/.local/bin}/ns" --version
 ```
 
 From another directory, use an absolute path to the script and checkout. Paths

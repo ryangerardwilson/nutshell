@@ -3,6 +3,13 @@
 Versions follow Semantic Versioning. Dates use YYYY-MM-DD. The matching Git tag
 has a `v` prefix; published tags are never moved.
 
+## [0.8.0] - 2026-10-07
+
+### Added
+- `ns` as a short command for Nutshell, installed beside the same executable.
+- Installer conflict checks that preserve unrelated existing `ns` commands.
+- Documentation for adding the alias to Go-installed binaries.
+
 ## [0.7.0] - 2026-10-07
 
 ### Added

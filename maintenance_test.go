@@ -42,6 +42,21 @@ func TestLocalInstallerSelectsSourceAndPreservesFailedBuild(t *testing.T) {
 		t.Fatalf("install selected checkout: %v: %s", err, out)
 	}
 	installed := filepath.Join(bin, "nutshell")
+	alias := filepath.Join(bin, "ns")
+	if target, err := os.Readlink(alias); err != nil || target != "nutshell" {
+		t.Fatalf("alias: %q %v", target, err)
+	}
+	if out, err := exec.Command(alias, "--version").CombinedOutput(); err != nil || string(out) != "nutshell 9.8.7\n" {
+		t.Fatalf("run alias: %v: %s", err, out)
+	}
+	// Reinstall a changed source and ensure the alias follows the new executable.
+	maintenanceFile(t, filepath.Join(source, "main.go"), "package main\nimport \"fmt\"\nfunc main(){fmt.Println(\"nutshell 9.8.8\")}\n")
+	if out, err := run("from", source); err != nil {
+		t.Fatalf("reinstall: %v: %s", err, out)
+	}
+	if out, err := exec.Command(alias, "--version").CombinedOutput(); err != nil || string(out) != "nutshell 9.8.8\n" {
+		t.Fatalf("alias after upgrade: %v: %s", err, out)
+	}
 	previous, err := os.ReadFile(installed)
 	if err != nil {
 		t.Fatal(err)
@@ -59,9 +74,63 @@ func TestLocalInstallerSelectsSourceAndPreservesFailedBuild(t *testing.T) {
 	if !bytes.Equal(previous, after) {
 		t.Fatal("failed install replaced existing executable")
 	}
+	if out, err := exec.Command(alias, "--version").CombinedOutput(); err != nil || string(out) != "nutshell 9.8.8\n" {
+		t.Fatalf("alias after failed upgrade: %v: %s", err, out)
+	}
 	leftovers, _ := filepath.Glob(filepath.Join(bin, ".nutshell-install-*"))
 	if len(leftovers) != 0 {
 		t.Fatal("failed install left staged binaries")
+	}
+}
+
+func TestInstallerPreservesUnrelatedNS(t *testing.T) {
+	installer, err := filepath.Abs("install.sh")
+	if err != nil {
+		t.Fatal(err)
+	}
+	source, err := os.Getwd()
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, kind := range []string{"file", "directory", "symlink"} {
+		t.Run(kind, func(t *testing.T) {
+			bin := t.TempDir()
+			installed, alias := filepath.Join(bin, "nutshell"), filepath.Join(bin, "ns")
+			maintenanceFile(t, installed, "previous installation")
+			switch kind {
+			case "file":
+				maintenanceFile(t, alias, "another tool")
+			case "directory":
+				maintenanceFile(t, filepath.Join(alias, "keep"), "another tool")
+			case "symlink":
+				if err := os.Symlink("unrelated-target", alias); err != nil {
+					t.Fatal(err)
+				}
+			}
+			cmd := exec.Command("bash", installer, "from", source)
+			cmd.Env = append(os.Environ(), "NUTSHELL_INSTALL_DIR="+bin)
+			out, err := cmd.CombinedOutput()
+			if err == nil || !strings.Contains(string(out), "unrelated command") {
+				t.Fatalf("conflict not rejected: %v: %s", err, out)
+			}
+			previous, _ := os.ReadFile(installed)
+			if string(previous) != "previous installation" {
+				t.Fatal("changed installed binary despite alias conflict")
+			}
+			if kind == "symlink" {
+				if target, err := os.Readlink(alias); err != nil || target != "unrelated-target" {
+					t.Fatal("changed unrelated symlink")
+				}
+			} else {
+				if kind == "directory" {
+					alias = filepath.Join(alias, "keep")
+				}
+				data, _ := os.ReadFile(alias)
+				if string(data) != "another tool" {
+					t.Fatal("changed unrelated command")
+				}
+			}
+		})
 	}
 }
 

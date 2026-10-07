@@ -41,7 +41,8 @@ out of Git. Do not download or install Codex skills, bundles or plugins.
 
 After completing a feature or fix, run tests and vet, validate release metadata
 with `./scripts/check-release.sh`, then run `./install.sh from "$PWD"` and verify
-`"${NUTSHELL_INSTALL_DIR:-$HOME/.local/bin}/nutshell" --version`. Install directly
+both `"${NUTSHELL_INSTALL_DIR:-$HOME/.local/bin}/nutshell" --version` and
+`"${NUTSHELL_INSTALL_DIR:-$HOME/.local/bin}/ns" --version`. Install directly
 from the changed checkout; do not download a release as a substitute. Report the
 installed version and checks. Documentation-only changes need no reinstall.
 
