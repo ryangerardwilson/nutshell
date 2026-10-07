@@ -14,13 +14,13 @@ import (
 )
 
 type Options struct {
-	NutshellVersion string
-	Entry           string
-	Interpreter     string
-	SourceDir       string
-	Output          string
-	Log             io.Writer
-	OnProgress      func(Progress)
+	FineTune    string
+	Entry       string
+	Interpreter string
+	SourceDir   string
+	Output      string
+	Log         io.Writer
+	OnProgress  func(Progress)
 }
 
 type Manifest struct {
@@ -70,6 +70,14 @@ func Compile(ctx context.Context, opts Options) (result Result, err error) {
 	if err != nil {
 		return result, err
 	}
+	if opts.FineTune != "" {
+		if strings.TrimSpace(opts.FineTune) == "" {
+			return result, fmt.Errorf("fine tuning requires a nonblank change request")
+		}
+		if !hasImplementation(baseline.Input.Files) {
+			return result, fmt.Errorf("fine tuning requires existing implementation files in -s; compile once without -ft first")
+		}
+	}
 	a, err := Resolve(opts.Interpreter)
 	if err != nil {
 		return result, err
@@ -113,13 +121,8 @@ func Compile(ctx context.Context, opts Options) (result Result, err error) {
 	if err = os.MkdirAll(filepath.Join(dir, "src"), 0700); err != nil {
 		return result, err
 	}
-	if err = writeProvenance(dir, provenanceFor(p, opts, Manifest{})); err != nil {
-		return result, err
-	}
-	if err = stagePrevious(dir, output, p); err != nil {
-		return result, err
-	}
-	prompt := promptFor(p)
+	_, legacyProvenance := baseline.Input.Files[legacyProvenanceResource]
+	prompt := promptFor(p, opts.FineTune, legacyProvenance)
 	promptFile := filepath.Join(dir, "prompt.txt")
 	if err = os.WriteFile(promptFile, []byte(prompt), 0600); err != nil {
 		return result, err
@@ -151,10 +154,6 @@ func Compile(ctx context.Context, opts Options) (result Result, err error) {
 		return result, err
 	}
 	result.Manifest = &manifest
-	expectedProvenance := provenanceFor(p, opts, manifest)
-	if err = writeProvenance(dir, expectedProvenance); err != nil {
-		return result, err
-	}
 	verification, err := os.OpenFile(filepath.Join(dir, "verification.log"), os.O_CREATE|os.O_EXCL|os.O_WRONLY, 0600)
 	if err != nil {
 		return result, err
@@ -200,10 +199,7 @@ func Compile(ctx context.Context, opts Options) (result Result, err error) {
 	if err = protectNutInputs(p, filepath.Join(dir, "src"), baseline.Destination.Path); err != nil {
 		return result, err
 	}
-	if err = verifyProvenance(artifact, expectedProvenance); err != nil {
-		return result, err
-	}
-	if err = publishOutputs(ctx, artifact, filepath.Join(dir, "src"), output, baseline, &expectedProvenance); err != nil {
+	if err = publishOutputs(ctx, artifact, filepath.Join(dir, "src"), output, baseline); err != nil {
 		return result, fmt.Errorf("publish: %w", err)
 	}
 	result.Status, result.Output = "succeeded", output

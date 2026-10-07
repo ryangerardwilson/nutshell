@@ -2,12 +2,10 @@
 
 ## Purpose
 
-Compile English-first .nut source into verified native executables through user-selected local AI interpreters, preserving source provenance and inspectable implementation evidence.
-
+Compile English-first .nut source into verified native executables through user-selected local AI compilers, with focused follow-up edits and inspectable implementation evidence.
 ## Requirements
-
 ### Requirement: English-first source programs
-Nutshell SHALL accept UTF-8 .nut source with main.nut as the default entry point and SHALL allow another explicit entry. The driver SHALL supply that entry and all available .nut files recursively beneath its directory, preserving exact text and relative paths, bounded to 128 files and 1 MiB of combined source text. Hidden directories and node_modules, vendor, target, dist and build SHALL be excluded. Directory symlinks SHALL NOT be followed and .nut file symlinks SHALL be rejected. The entry itself SHALL always be included. Invalid, empty, unreadable or over-limit source SHALL fail before invoking an AI. Include, from, import and other composition syntax SHALL be interpreted by the selected AI compiler, not by the driver. Files outside the discovery boundary SHALL NOT be implicitly read; their absence SHALL be explained in the compiler prompt. The complete input bundle SHALL be retained as provenance, without claiming every available file was semantically used.
+Nutshell SHALL accept UTF-8 .nut source with main.nut as the default entry point and SHALL allow another explicit entry. The driver SHALL supply that entry and all available .nut files recursively beneath its directory, preserving exact text and relative paths, bounded to 128 files and 1 MiB of combined source text. Hidden directories and node_modules, vendor, target, dist and build SHALL be excluded. Directory symlinks SHALL NOT be followed and .nut file symlinks SHALL be rejected. The entry itself SHALL always be included. Invalid, empty, unreadable or over-limit source SHALL fail before invoking an AI. Include, from, import and other composition syntax SHALL be interpreted by the selected AI compiler, not by the driver. Files outside the discovery boundary SHALL NOT be implicitly read; their absence SHALL be explained in the compiler prompt. The complete input bundle SHALL be retained in the temporary build workspace, without claiming every available file was semantically used. It SHALL NOT be embedded in the generated executable by Nutshell.
 
 #### Scenario: Compiler-defined imports
 - **GIVEN** main.nut says from feature1.nut import abc and feature1.nut is available beneath the entry directory
@@ -98,7 +96,7 @@ The compilation agent SHALL be instructed to send structured stage updates with 
 - **THEN** the interactive terminal SHALL show Waiting for AI progress update with elapsed time instead of inventing tasks or completion, and resume displaying activity on the next valid update.
 
 ### Requirement: Incremental implementation context
-Nutshell SHALL use only the directory explicitly supplied by -s as implementation context and as the updated source destination. Relative paths SHALL resolve from the caller's working directory. It SHALL NOT discover or fall back to src/ beside the entry or output. The source directory MAY be absent if its parent exists; it SHALL be created only on successful publication. The AI SHALL be instructed to inspect and adapt existing code, tests, architecture and assets, preserving unrelated work rather than rebuilding from scratch. The .nut program SHALL remain authoritative for requested behavior. Existing source SHALL NOT require a generated-ownership receipt. Source context SHALL remain bounded and SHALL reject symlinks and non-regular files. Publication SHALL compare the selected source snapshot under publication locks before replacing source and binary. The executable SHALL be outside the selected source directory.
+Nutshell SHALL use only the directory explicitly supplied by -s as implementation context and as the updated source destination. Relative paths SHALL resolve from the caller's working directory. It SHALL NOT discover or fall back to src/ beside the entry or output. The source directory MAY be absent if its parent exists; it SHALL be created only on successful publication. The AI SHALL be instructed to inspect and adapt existing code, tests, architecture and assets, preserving unrelated work rather than rebuilding from scratch. The .nut program SHALL remain authoritative for full compilation. In fine-tune mode, the explicit requested change SHALL take precedence only within its stated scope. Existing source SHALL NOT require a generated-ownership receipt. Source context SHALL remain bounded and SHALL reject symlinks and non-regular files. Publication SHALL compare the selected source snapshot under publication locks before replacing source and binary. The executable SHALL be outside the selected source directory.
 
 #### Scenario: User-selected implementation
 - **GIVEN** -s selects a directory containing user-edited code and another src/ directory exists nearby
@@ -154,31 +152,23 @@ Local installation SHALL provide ns beside nutshell as a symbolic link to the sa
 - **WHEN** the installer runs
 - **THEN** it SHALL report the conflict and leave both existing command paths unchanged.
 
-### Requirement: Embedded program provenance
-Every successfully published generated executable SHALL contain a validated versioned provenance resource with the entry path, complete original .nut source bundle, canonical source SHA-256, Nutshell version, selected AI compiler, implementation language and recorded assumptions. The driver SHALL supply the resource for toolchain embedding and verify that the final executable contains the exact expected record before publication. It SHALL NOT rewrite signed executable bytes to append metadata. Missing, corrupted, conflicting or mismatched provenance SHALL prevent publication. Provenance SHALL be documented as a record of inputs and assumptions, not authentication or proof of executable behavior. The source resource SHALL travel with published implementation source so subsequent builds can embed it.
+### Requirement: Focused fine tuning
+Nutshell SHALL accept -ft or --fine-tune with a nonblank change request, including flags before or after the entry and equals-form values. Fine tuning SHALL require existing implementation files in the explicitly selected -s directory and SHALL reject absent, empty or metadata-only context before invoking an AI. The initial prompt SHALL prominently supply the request, instruct the agent to inspect and edit only relevant code, retain the existing language and architecture, preserve unrelated behavior, and avoid reimplementing the program or auditing all requirements. The prompt SHALL supply .nut paths with snapshots available on demand instead of inlining their full text. The request SHALL override conflicting .nut requirements only for the requested change, and .nut inputs SHALL remain unchanged. Fine tuning SHALL retain unattended compilation, rgw-ast instructions, activity summaries, native build/test verification, source drift checks and protected publication. It SHALL NOT promise a fixed compilation duration.
 
-#### Scenario: Recover source from an executable
-- **GIVEN** a successfully compiled executable and no original source directory
-- **WHEN** the user inspects the executable
-- **THEN** all original .nut filenames and text SHALL be recoverable without executing the program.
+#### Scenario: Targeted follow-up
+- **GIVEN** an existing implementation supplied via -s
+- **WHEN** the user passes -ft "replace x with y"
+- **THEN** the agent SHALL receive that focused request with relevant source context available and be instructed to preserve unrelated code and behavior.
 
-#### Scenario: Agent omits the source resource
-- **GIVEN** a generated binary builds and passes tests but lacks the expected provenance
-- **WHEN** publication verification runs
-- **THEN** the build SHALL fail and prior source and binary SHALL remain intact.
+#### Scenario: Missing implementation or request
+- **GIVEN** a blank fine-tune request or an absent or empty implementation directory
+- **WHEN** fine tuning is requested
+- **THEN** Nutshell SHALL fail before starting an AI session with guidance to provide a request or compile an implementation first.
 
-### Requirement: Static provenance inspection and diff
-Both command names SHALL support inspect <binary> with --source or --json, and diff <binary> [entry.nut] with optional --json. These commands SHALL require neither an AI provider nor -c or -s. They SHALL only read the target and source files, never execute the inspected binary. Inspection SHALL bound allocations and validate the provenance schema, checksum, paths and source hash. Legacy binaries without provenance SHALL produce an actionable error. Diff SHALL report changed entry points and added, removed or modified source files, returning 0 for equality, 1 for differences and 2 for errors.
+### Requirement: Lean generated executables
+Nutshell SHALL NOT generate, embed or validate a source provenance resource, stage prior binaries for inspection, or expose inspect/diff subcommands. When existing source contains the former .nutshell-provenance.bin resource, the compilation prompt SHALL instruct the AI to remove it and its Nutshell-only embedding hooks together, preserving application resources and behavior. A leftover legacy resource SHALL prevent publication with an actionable error. Ordinary native binaries without provenance SHALL be publishable after build and test verification.
 
-#### Scenario: Imported feature changes
-- **GIVEN** a binary records main.nut and feature1.nut and only feature1.nut changes
-- **WHEN** the user runs diff against main.nut
-- **THEN** the change in feature1.nut SHALL be reported and the command SHALL return 1.
-
-### Requirement: Agent access to prior program provenance
-The initial compilation prompt SHALL describe inspect and diff, provide callable examples, explain source discovery and delegate composition semantics to the AI. When the selected output exists, the driver SHALL stage a read-only copy under the temporary workspace and provide its available provenance and source diff or a reason provenance is unavailable. The prompt SHALL instruct the AI to use prior requirements to understand changes while treating current source as authoritative. The AI SHALL NOT be asked to execute the previous program for inspection.
-
-#### Scenario: Incremental compilation from an existing output
-- **GIVEN** the output from an earlier compilation exists
-- **WHEN** the next AI session starts
-- **THEN** its initial context SHALL identify the staged prior binary and the inspect/diff tools without requiring access to the original project directory.
+#### Scenario: Rebuild a former provenance-bearing implementation
+- **GIVEN** existing source contains the legacy Nutshell provenance resource and embedding code
+- **WHEN** full compilation or fine tuning runs
+- **THEN** the agent SHALL be instructed to remove both from the temporary source before rebuilding, and failed migration SHALL leave original source and output intact.

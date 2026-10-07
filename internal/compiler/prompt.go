@@ -3,25 +3,52 @@ package compiler
 import (
 	"encoding/json"
 	"fmt"
-	"os"
-	"path/filepath"
 	"runtime"
 )
 
-func promptFor(p Program) string {
+func promptFor(p Program, fineTune string, legacyProvenance bool) string {
 	sources, _ := json.MarshalIndent(p.Sources, "", "  ")
-	driver, err := os.Executable()
-	if err != nil {
-		driver = "nutshell"
+	context := "SOURCE BUNDLE (authoritative for full compilation):\n" + string(sources)
+	mode := `FULL COMPILATION: Implement the .nut program. Choose the implementation language
+and architecture for a new program; adapt existing source when present. Keep its
+language and architecture unless the requested behavior requires a change. The
+.nut source is authoritative where behavior conflicts.`
+	if fineTune != "" {
+		request, _ := json.Marshal(fineTune)
+		mode = `FINE-TUNE MODE: Make only this focused change to the existing implementation.
+CHANGE REQUEST (JSON string): ` + string(request) + `
+The change request takes precedence over conflicting .nut requirements ONLY within
+its stated scope. Preserve all unrelated behavior. Keep the existing language,
+architecture, dependencies and useful tests. Do not rebuild from scratch, redesign,
+re-audit every requirement or make speculative improvements. Locate the relevant
+symbols and edit the smallest necessary set of files with rgw-ast. Read only the
+.nut snapshots needed to understand this change; they are background context, not
+a demand to reimplement the whole program. Add or update tests for the change and
+run the relevant existing tests. Keep reproducible build and test commands.`
+		paths := make([]string, 0, len(p.Sources))
+		for _, source := range p.Sources {
+			paths = append(paths, "source/"+source.Path)
+		}
+		encoded, _ := json.MarshalIndent(paths, "", "  ")
+		context = "AVAILABLE .nut SNAPSHOTS (read only as needed):\n" + string(encoded)
 	}
-	inspectionCommands, _ := json.MarshalIndent([][]string{
-		{driver, "inspect", "previous-program", "--json"},
-		{driver, "inspect", "previous-program", "--source"},
-		{driver, "diff", "previous-program", filepath.ToSlash(filepath.Join("source", p.Entry)), "--json"},
-	}, "", "  ")
+	migration := ""
+	if legacyProvenance {
+		migration = `LEGACY SOURCE MIGRATION: This source contains .nutshell-provenance.bin from
+Nutshell 0.9. Remove that resource AND its Nutshell-only embedding declarations,
+retention/startup checks and build references together before rebuilding. Preserve
+application resources and behavior. Do not embed .nut inputs or replace the old
+resource with inline bytes. Publication rejects a leftover legacy resource.
+`
+	}
 	return fmt.Sprintf(`You are the compilation agent for Nutshell, an English-first programming language.
 Compile the supplied .nut program into a native executable for %s/%s.
-Entry point: %s. The JSON source bundle below is authoritative program source.
+Entry point: %s.
+
+%s
+
+%s
+The source context below is available in source/ and source.json.
 The bundle contains the entry and available .nut files beneath its directory.
 YOU define file composition semantics: from/import/Include, named symbols, references
 in ordinary English, or another wording are all yours to interpret. Nutshell has no
@@ -31,8 +58,7 @@ user's meaning without demanding a particular syntax. Files outside this bundle
 were not supplied; make reasonable assumptions without reading the original project.
 Discovery skips hidden directories and node_modules, vendor, target, dist and build.
 
-Implement the requested observable behavior and invariants. Choose the implementation
-language, architecture, libraries and algorithms yourself using available toolchains.
+Implement the requested observable behavior and invariants within the mode above.
 Make any assumptions needed to produce a useful, coherent program, including resolving
 ambiguous, missing or contradictory requirements. Record your decisions in assumptions
 in build.json. Never ask the user questions, request clarification, or stop just because
@@ -71,15 +97,12 @@ They are the existing implementation,
 including user-written edits, tests and assets, copied here for you to extend.
 Adapt the existing code rather than deleting it and starting from scratch. Preserve
 unrelated behavior, useful tests, comments and assets; make focused changes needed
-for the .nut program. Keep the existing language and architecture unless satisfying
-the requested behavior requires changing them. The .nut source is authoritative
-where behavior conflicts. Preserve all .nut files copied inside src/ unchanged.
+for the selected compilation mode. Preserve all .nut files copied inside src/ unchanged.
 source-context.json describes where this implementation came from; original-src/
 is its untouched snapshot. Do not modify either or write to the original project.
-The only file in a fresh src/ may be .nutshell-provenance.bin, a driver-owned
-resource rather than an existing implementation. In that case create the program.
+If src/ is empty, create the program. Fine-tune mode always requires existing source.
 Do not modify the original source files or the source/ snapshots, prompt.txt, source.json,
-interpreter.log, verification.log, result.json, previous-program or previous-context.json. Do not create nested git repositories.
+interpreter.log, verification.log, result.json. Do not create nested git repositories.
 Never download, install, synchronize or update Codex skills, skill bundles or plugins.
 Do not invoke skill installers or plugin/marketplace installation flows.
 Do not delegate to subagents. Do not change authentication, models or global configuration.
@@ -110,38 +133,6 @@ Progress updates, build.json and scratch payloads outside src/ may use ordinary
 file writes. Build and test commands are still required. If rgw-ast cannot perform
 a required operation, report the failure and stop rather than silently bypass it.
 
-SOURCE PROVENANCE IS REQUIRED IN THE EXECUTABLE:
-The driver supplies src/.nutshell-provenance.bin. Embed its EXACT bytes as a retained
-binary resource using your chosen native toolchain. Do not modify it, manually
-serialize it, or inline a cached copy into source. The driver rewrites this file
-with final assumptions and language from build.json BEFORE running your declared
-build commands. Those commands must read the current resource and embed it anew.
-Use Go embed, Rust include_bytes!, a C resource/object input, or an equivalent for
-your chosen language. Ensure the linker retains the entire resource: an unused
-constant can be removed. A harmless startup integrity check of the embedded bytes
-can retain it. The program must not need this file on disk at runtime. Do not add
-runtime CLI flags or output solely for provenance. The driver statically verifies
-the complete embedded record after tests and refuses to publish if it is missing,
-stale or conflicting. Never append bytes to a built/signed executable as a workaround.
-The published source directory includes this resource for future native builds.
-
-INSPECT AND DIFF ARE AVAILABLE:
-Nutshell (also named ns) can read provenance without running the inspected program:
-ns inspect <binary> --source shows its original .nut files; --json gives the full
-record. ns diff <binary> <entry.nut> --json compares all source paths and contents.
-Diff exit 0 means equal, 1 means changed, 2 means error; differences are not a tool
-failure. These commands need neither -c nor -s and never start an AI session.
-previous-context.json says whether a previous output exists and includes any valid
-provenance and source diff, or the reason they are unavailable for an older binary.
-When present, previous-program is its read-only snapshot here. Use its requirements
-and assumptions to understand what changed; current source remains authoritative.
-Do not execute previous-program. Use these absolute argv examples so you run this
-compiler version, rather than a potentially older ns found on PATH:
-%s
-No previous output is normal on a first build. Your intermediate binary can also
-be inspected with these commands once it embeds the resource. Source provenance is
-not proof of runtime correctness; you still need behavior tests.
-
 Produce actual implementation source plus tests of observable behavior, including error
 cases required by the program. Build a real native executable, not a shell/Python/Node
 launcher or a library. Leave reproducible commands for the driver to execute again.
@@ -164,7 +155,6 @@ inside this directory, without symlinks. Avoid external services for tests unles
 source requires them. Do not merely print a proposed implementation: write the files.
 End with a brief summary; the driver reads files, not your final response.
 
-SOURCE BUNDLE:
 %s
-`, runtime.GOOS, runtime.GOARCH, p.Entry, inspectionCommands, sources)
+`, runtime.GOOS, runtime.GOARCH, p.Entry, mode, migration, context)
 }

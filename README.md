@@ -60,7 +60,7 @@ the AI is instructed to adapt the existing implementation, including manual edit
 
 ## Install
 
-Nutshell is early software. This checkout is **0.9.0**; the latest tagged release
+Nutshell is early software. This checkout is **0.10.0**; the latest tagged release
 is **0.7.0**. Linux is the primary tested host.
 
 Install with Go 1.26 or newer:
@@ -133,26 +133,27 @@ Nutshell supplies the entry file and available `.nut` files beneath its director
 The AI decides what the references mean. Read the [language guide](docs/language.md)
 for the discovery boundary and ways to make your intent concrete.
 
-## The binary remembers its source
-
-Every newly compiled executable carries the exact `.nut` input bundle, entry point,
-source hash, compiler identity and recorded assumptions. Inspect it without
-running the program, even if the original source directory is gone:
+## Small change? Fine-tune it.
 
 ```sh
-ns inspect ./greet --source
-ns inspect ./greet --json
-ns diff ./greet main.nut
+nutshell main.nut -c grok -o app -s ./src -ft "replace x with y"
+# --fine-tune is the long form; ns works too.
 ```
 
-Diff sees changes across the complete bundle, including another `.nut` file that
-changed while `main.nut` stayed the same. The AI gets these tools in its initial
-prompt, plus prior provenance and a source comparison when recompiling an existing
-output. The current source remains authoritative.
+`-ft` gives the compiler one focused task against the existing `-s` implementation.
+It is instructed to keep the language and architecture, preserve unrelated work,
+and read only the relevant code and `.nut` context. Existing source is required.
+Nutshell still builds, tests and verifies the result before replacing your outputs.
+Provider speed and build time still apply; there is no fixed latency guarantee.
 
-The embedded bundle records what the compiler received, not proof that it
-implemented it correctly or used every available file. Older binaries need
-recompilation to acquire this metadata. See [source provenance](docs/provenance.md).
+The request takes precedence over conflicting `.nut` text only for that change.
+Your `.nut` files are left untouched. Record lasting behavior changes there before
+a future full compilation, which follows the `.nut` program again.
+
+Binaries carry the application, without Nutshell's source metadata. Version 0.10.0
+removes embedded provenance and the `inspect`/`diff` commands. Keep your `.nut`
+files separately. Recompiling a 0.9 implementation instructs the AI to remove its
+old Nutshell resource and embedding hooks together; application resources remain.
 
 ## What happens on your machine
 
@@ -177,7 +178,6 @@ action. No provider hooks or global configuration are installed.
 | --- | --- |
 | [Language guide](docs/language.md) | Writing `.nut` programs, file composition, assumptions |
 | [CLI reference](docs/cli.md) | Flags, compiler adapters, source reuse, progress, failures |
-| [Source provenance](docs/provenance.md) | Inspect binaries, recover `.nut` source and compare requirements |
 | [Architecture](docs/architecture.md) | The Go driver, compiler contract, verification, publication |
 | [Examples](examples/) | Small programs you can read and compile |
 | [Installation and releases](docs/releases.md) | One-command install, local updates, version policy and releases |

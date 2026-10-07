@@ -50,3 +50,27 @@ func TestOldCompilerFlagsGiveMigrationGuidance(t *testing.T) {
 		}
 	}
 }
+
+func TestFineTuneArguments(t *testing.T) {
+	request := "replace x with y\nkeep 100% of other behavior"
+	for _, flags := range [][]string{{"-ft", request}, {"--fine-tune", request}, {"-ft=" + request}, {"--fine-tune=" + request}} {
+		for _, before := range []bool{true, false} {
+			args := []string{"main.nut", "-c", "grok", "-o", "app", "-s", "./src"}
+			if before {
+				args = append(append([]string{}, flags...), args...)
+			} else {
+				args = append(args, flags...)
+			}
+			got, err := parse(args)
+			if err != nil || got.FineTune != request || got.Output != "app" {
+				t.Fatalf("%v: %+v %v", args, got, err)
+			}
+		}
+	}
+	for _, flags := range [][]string{{"-ft"}, {"-ft", ""}, {"--fine-tune="}, {"-ft", " \n\t"}} {
+		args := append([]string{"-c", "grok", "-s", "./src"}, flags...)
+		if _, err := parse(args); err == nil {
+			t.Fatalf("accepted %v", args)
+		}
+	}
+}

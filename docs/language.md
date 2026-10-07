@@ -100,10 +100,10 @@ nonempty UTF-8, at most 128 files and 1 MiB total. Files outside that boundary
 are not automatically fetched because a sentence mentions them. The compiler
 makes assumptions about missing information as it does for other ambiguity.
 
-The binary records the complete bundle the AI received, including available files
-it may not have used. Move unrelated `.nut` files outside the source tree if they
-should not be supplied or embedded. Adding or removing an available file changes
-the source bundle even when no reference in `main.nut` changes.
+The temporary workspace records the complete input bundle, including available
+files the AI may not use. The binary does not embed these inputs. Move unrelated
+`.nut` files outside the source tree if they should not be supplied. Adding or
+removing an available file changes the bundle even when `main.nut` stays the same.
 
 ## Evolve a program
 
@@ -118,6 +118,17 @@ to inspect and adapt it, preserving useful tests, assets, and manual work.
 Requested behavior in `.nut` takes precedence where it conflicts with the old
 implementation. Files outside the selected source directory are not implicitly
 included as implementation context.
+
+For a focused edit against that implementation:
+
+```sh
+ns main.nut -c grok -s ./implementation -o app -ft "Reject negative quantities"
+```
+
+The request takes precedence within its scope. The AI is instructed to preserve
+unrelated behavior and read `.nut` context only as needed. Existing implementation
+is required; the source language and architecture stay in place. The compiler still
+builds and tests the result, and leaves your `.nut` files unchanged.
 
 The program file is the durable statement of intent. Record a behavior change
 there even if you also fix the generated implementation by hand.

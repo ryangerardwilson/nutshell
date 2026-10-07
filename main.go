@@ -22,13 +22,12 @@ var version = strings.TrimSpace(versionFile)
 
 const help = `nutshell — compile English-first .nut programs with your AI tool
 
-Usage: nutshell [main.nut] -c <codex|grok|claude|custom> -s <path> [-o output]
-       ns [main.nut] -c <codex|grok|claude|custom> -s <path> [-o output]
-       ns inspect <binary> [--source | --json]
-       ns diff <binary> [entry.nut] [--json]
+Usage: nutshell [main.nut] -c <codex|grok|claude|custom> -s <path> [-o output] [-ft "change"]
+       ns [main.nut] -c <codex|grok|claude|custom> -s <path> [-o output] [-ft "change"]
 
   -c, --compiler TOOL     AI compilation agent (required)
   -s, --source PATH       Implementation directory to read and update (required)
+  -ft, --fine-tune TEXT   Make a focused change to existing -s source
   -o, --output PATH       Native executable; defaults to entry without .nut
       --timeout DURATION  Total compilation deadline (default 30m)
   -h, --help              Show help
@@ -42,7 +41,9 @@ The directory selected by -s supplies context and receives updated source.
 Relative -s paths resolve from your current directory; its parent must exist.
 Other tools: ~/.config/nutshell/interpreters.json (respects XDG_CONFIG_HOME).
 
-Example: nutshell main.nut -c codex -s ./src
+Fine tuning requires existing source; it does not rewrite your .nut files.
+
+Example: nutshell main.nut -c grok -o app -s ./src -ft "replace x with y"
 `
 
 type arguments struct {
@@ -74,7 +75,7 @@ func parse(args []string) (arguments, error) {
 			switch key {
 			case "-i", "--interpreter":
 				return o, fmt.Errorf("%s was replaced by -c (or --compiler)", key)
-			case "-c", "--compiler", "-s", "--source", "-o", "--output", "--timeout":
+			case "-c", "--compiler", "-s", "--source", "-o", "--output", "--timeout", "-ft", "--fine-tune":
 				if !hasValue {
 					i++
 					if i >= len(args) {
@@ -92,6 +93,11 @@ func parse(args []string) (arguments, error) {
 					o.SourceDir = value
 				case "-o", "--output":
 					o.Output = value
+				case "-ft", "--fine-tune":
+					if strings.TrimSpace(value) == "" {
+						return o, fmt.Errorf("%s requires a nonblank change request", key)
+					}
+					o.FineTune = value
 				case "--timeout":
 					d, err := time.ParseDuration(value)
 					if err != nil || d <= 0 {
@@ -120,9 +126,6 @@ func parse(args []string) (arguments, error) {
 }
 
 func execute(ctx context.Context, args []string, out, errOut io.Writer) int {
-	if len(args) > 0 && (args[0] == "inspect" || args[0] == "diff") {
-		return inspectCommand(args, out, errOut)
-	}
 	o, err := parse(args)
 	if err != nil {
 		fmt.Fprintf(errOut, "nutshell: %v\nRun nutshell --help for usage.\n", err)
@@ -140,7 +143,6 @@ func execute(ctx context.Context, args []string, out, errOut io.Writer) int {
 	defer cancel()
 	display := newProgressDisplay(errOut, isTerminal(errOut))
 	o.OnProgress = display.update
-	o.NutshellVersion = version
 	result, err := compiler.Compile(ctx, o.Options)
 	display.finish(err)
 	if err != nil {

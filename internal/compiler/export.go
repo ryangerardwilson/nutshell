@@ -93,7 +93,7 @@ func sourceFiles(root, copyTo string) (map[string]string, error) {
 // Stage source on the destination filesystem, then roll it back if binary
 // publication fails. Lock both parent directories when source and binary are
 // published separately, so builds sharing either destination cannot collide.
-func publishOutputs(ctx context.Context, artifact, source, output string, baseline sourceContext, expected *Provenance) error {
+func publishOutputs(ctx context.Context, artifact, source, output string, baseline sourceContext) error {
 	dest := baseline.Destination.Path
 	parent := filepath.Dir(dest)
 	parents := []string{parent}
@@ -119,6 +119,9 @@ func publishOutputs(ctx context.Context, artifact, source, output string, baseli
 	files, err := sourceFiles(source, stage)
 	if err != nil {
 		return fmt.Errorf("generated src: %w", err)
+	}
+	if _, exists := files[legacyProvenanceResource]; exists {
+		return fmt.Errorf("remove legacy %s and its Nutshell-only embedding hooks, then rebuild", legacyProvenanceResource)
 	}
 	if !hasImplementation(files) {
 		return fmt.Errorf("compilation agent must generate implementation files in src/")
@@ -164,7 +167,7 @@ func publishOutputs(ctx context.Context, artifact, source, output string, baseli
 	if err := ctx.Err(); err != nil {
 		return rollback(err)
 	}
-	if err := publish(artifact, output, expected); err != nil {
+	if err := publish(artifact, output); err != nil {
 		return rollback(err)
 	}
 	if hadSource {

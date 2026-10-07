@@ -8,6 +8,9 @@ import (
 	"strings"
 )
 
+// Version 0.9 generated this resource; new builds remove it and its embedding hooks.
+const legacyProvenanceResource = ".nutshell-provenance.bin"
+
 type sourceSnapshot struct {
 	Path   string            `json:"path"`
 	Exists bool              `json:"exists"`
@@ -106,7 +109,7 @@ func (c sourceContext) unchanged() error {
 
 func hasImplementation(files map[string]string) bool {
 	for name, fingerprint := range files {
-		if name == ProvenanceResource {
+		if name == legacyProvenanceResource || name == sourceReceipt || filepath.Ext(name) == ".nut" {
 			continue
 		}
 		if strings.HasPrefix(fingerprint, "file:") {

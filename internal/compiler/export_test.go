@@ -16,18 +16,18 @@ func TestSourcePublicationAndRollback(t *testing.T) {
 	source := filepath.Join(t.TempDir(), "src")
 	put(t, filepath.Join(source, "main.go"), "original code")
 	out := filepath.Join(root, "main")
-	if err := publishOutputs(context.Background(), self, source, out, exportContext(t, out), nil); err != nil {
+	if err := publishOutputs(context.Background(), self, source, out, exportContext(t, out)); err != nil {
 		t.Fatal(err)
 	}
 	put(t, filepath.Join(source, "main.go"), "replacement code")
-	if err := publishOutputs(context.Background(), "/missing-artifact", source, out, exportContext(t, out), nil); err == nil {
+	if err := publishOutputs(context.Background(), "/missing-artifact", source, out, exportContext(t, out)); err == nil {
 		t.Fatal("accepted failed publication")
 	}
 	data, _ := os.ReadFile(filepath.Join(root, "src", "main.go"))
 	if string(data) != "original code" {
 		t.Fatalf("failed to roll back: %s", data)
 	}
-	if err := publishOutputs(context.Background(), self, source, out, exportContext(t, out), nil); err != nil {
+	if err := publishOutputs(context.Background(), self, source, out, exportContext(t, out)); err != nil {
 		t.Fatal(err)
 	}
 	data, _ = os.ReadFile(filepath.Join(root, "src", "main.go"))
@@ -36,7 +36,7 @@ func TestSourcePublicationAndRollback(t *testing.T) {
 	}
 	baseline := exportContext(t, out)
 	put(t, filepath.Join(root, "src", "main.go"), "user edits")
-	if err := publishOutputs(context.Background(), self, source, out, baseline, nil); err == nil {
+	if err := publishOutputs(context.Background(), self, source, out, baseline); err == nil {
 		t.Fatal("accepted changes made during compilation")
 	}
 	data, _ = os.ReadFile(filepath.Join(root, "src", "main.go"))
@@ -94,7 +94,7 @@ func TestRollbackAcrossPublicationDirectories(t *testing.T) {
 		t.Fatal(err)
 	}
 	put(t, filepath.Join(work, "src", "main.go"), "temporary replacement")
-	if err := publishOutputs(context.Background(), "/missing-artifact", filepath.Join(work, "src"), output, baseline, nil); err == nil {
+	if err := publishOutputs(context.Background(), "/missing-artifact", filepath.Join(work, "src"), output, baseline); err == nil {
 		t.Fatal("accepted failed binary publication")
 	}
 	data, _ := os.ReadFile(filepath.Join(selected, "main.go"))

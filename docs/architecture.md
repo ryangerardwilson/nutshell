@@ -24,14 +24,14 @@ entry + available .nut files       selected implementation (-s)
 ## Driver stages
 
 1. Parse the CLI, load the bounded `.nut` bundle, validate destinations, and
-   snapshot the selected implementation.
+   snapshot the selected implementation. Fine tuning requires existing source.
 2. Resolve the AI adapter and require `rgw-ast` on `PATH`.
 3. Create a private build directory under `/tmp`, copy source context, and write
    the shared compilation prompt.
 4. Start the AI with unattended full-permission settings and no model override.
    Read activity updates while its output goes to a temporary log.
 5. Parse the strict versioned build manifest and run its build and test commands.
-6. Validate a native executable for the host, verify its embedded provenance, and check for concurrent source
+6. Validate a native executable for the host and check for concurrent source
    changes. Publish source and binary under publication locks. Roll back source
    if binary publication fails.
 
@@ -77,25 +77,24 @@ owns later build, test, publication, and completion milestones. Invalid updates
 are ignored; missing updates do not invent progress. A later task can change the
 summary without moving the bar backward. Raw chat is not the progress protocol.
 
-## Embedded provenance and inspection
+## Full compilation and fine tuning
 
-Before the AI starts, the driver writes `src/.nutshell-provenance.bin`. The agent
-embeds its opaque bytes as a retained resource using the selected native toolchain.
-After reading build.json, the driver updates that resource with final assumptions
-and implementation language before running build commands. The completed executable
-must contain the exact expected record or publication fails.
+Full compilation supplies the complete `.nut` bundle in the agent prompt.
+`-ft` / `--fine-tune` instead supplies a focused change request and a list of
+snapshot paths. The same snapshots and `source.json` remain available in `/tmp`,
+but the AI is instructed to read only relevant requirements and implementation.
+The request takes precedence within its stated scope; unrelated behavior, language
+and architecture are preserved. Neither mode rewrites `.nut` inputs.
 
-The binary resource is part of compilation; the driver does not append metadata
-to a finished signed executable. This respects native formats whose signing data
-lives in the executable itself. See [Apple's signing procedures](https://developer.apple.com/library/archive/documentation/Security/Conceptual/CodeSigningGuide/Procedures/Procedures.html)
-and [Microsoft's PE format](https://learn.microsoft.com/en-us/windows/win32/debug/pe-format).
+Fine tuning rejects missing, empty or metadata-only implementation context before
+invoking a provider. Both modes use the same progress, rgw-ast, build/test and
+publication pipeline. This reduces requested analysis work, not verification.
 
-Static inspection scans regular files in chunks, checks framed JSON payloads and
-source hashes, and rejects conflicting valid records. It never executes the target.
-The previous output is staged read-only and inspected before the next AI session;
-its source diff or unavailable reason is in `previous-context.json`. The initial
-prompt describes inspect/diff and supplies argv examples using the driver's path.
-See [the provenance format](provenance.md) for details and limitations.
+The driver no longer generates source provenance, stages prior binaries, or offers
+inspect/diff. A legacy `.nutshell-provenance.bin` in the selected source triggers
+instructions to remove it and its embedding hooks together. Publication rejects a
+leftover resource so failed migration preserves existing outputs. No new metadata
+resource is embedded; ordinary application resources can still be embedded.
 
 ## Source and output ownership
 
@@ -144,10 +143,6 @@ working files by convention; it does not restrict process access to the machine.
 | `main.go` | CLI options, cancellation, exit codes |
 | `progress.go` | Terminal bar and redirected activity output |
 | `internal/compiler/source.go` | Syntax-independent `.nut` discovery and validation |
-| `internal/compiler/provenance.go` | Resource framing, static inspection and publication verification |
-| `internal/compiler/source_diff.go` | Canonical bundle comparison and human diff output |
-| `internal/compiler/previous.go` | Static prior-output context for compilation agents |
-| `inspect.go` | inspect/diff CLI and output modes |
 | `internal/compiler/provider.go` | Built-in and custom CLI adapters |
 | `internal/compiler/prompt.go` | Shared instructions for compilation agents |
 | `internal/compiler/compiler.go` | Generation, build/test orchestration, result records |

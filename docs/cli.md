@@ -97,22 +97,36 @@ and assumptions when that distinction matters.
 See [hello](../examples/hello/main.nut) and the multi-file
 [greeting example](../examples/greet/main.nut).
 
-## Inspect and compare generated programs
+## Fine tuning
+
+For a targeted follow-up edit, use existing implementation source:
 
 ```sh
-ns inspect ./app                 # provenance summary
-ns inspect ./app --source        # all original .nut text, labeled by path
-ns inspect ./app --json          # full machine-readable record
-ns diff ./app main.nut           # compare against current available source
-ns diff ./app main.nut --json
+nutshell main.nut -c grok -o app -s ./src -ft "replace x with y"
+ns main.nut -c codex -s ./src --fine-tune "Reject negative quantities"
 ```
 
-These commands read data, never execute the target or invoke an AI, and do not
-require `-c`, `-s`, provider credentials or `rgw-ast`. Diff defaults to `main.nut`.
-Its exit codes are 0 for equality, 1 for differences, and 2 for errors. Inspect
-returns 0 on success and 2 on errors. Use `--` before paths beginning with a dash.
-Legacy binaries without provenance need recompilation. See
-[source provenance](provenance.md) for format and integrity boundaries.
+`-ft` and `--fine-tune` accept one quoted, nonblank change request. Flags work
+before or after the entry; `--fine-tune="replace x with y"` also works. The `-s`
+directory must already contain implementation files. Missing, empty or
+metadata-only source fails before invoking the AI; compile without `-ft` first.
+
+The AI receives the focused request and `.nut` snapshot paths instead of all
+requirements inline. It is instructed to inspect relevant code, keep the existing
+language and architecture, preserve unrelated behavior, and update tests for the
+change. It does not need to re-audit the whole program. Builds, tests, progress,
+rgw-ast and publication checks remain required. Speed still depends on the AI,
+project and toolchain.
+
+The request overrides conflicting `.nut` requirements only within its scope.
+Nutshell leaves your `.nut` files unchanged. Update them separately for lasting
+behavior changes: the next compilation without `-ft` follows those requirements.
+
+Version 0.10.0 removes `inspect`, `diff`, prior-binary context and embedded `.nut`
+provenance. Existing 0.9 source can be reused; the agent is told to remove the old
+`.nutshell-provenance.bin` and its embedding hooks together, preserving application
+resources. A leftover resource prevents publication. Keep your `.nut` files
+separately; the binary no longer serves as their archive.
 
 ## Compilation agents
 
@@ -223,9 +237,7 @@ create a `.nutshell/` folder in your project. Old `.nutshell/` folders from earl
 versions are left alone. The temporary directory contains original source
 snapshots, working `src/`, prompts, AI output, build/test logs, assumptions and
 result metadata. When reusing source, `original-src/` keeps its initial snapshot
-and `source-context.json` records its provenance. Existing output is staged read-only
-as `previous-program`; `previous-context.json` supplies its available provenance
-and source diff or the reason they are unavailable. Child commands use temporary scratch and Go cache directories
+and `source-context.json` records its origin and fingerprints. Child commands use temporary scratch and Go cache directories
 inside that attempt. Authentication and other provider configuration are inherited.
 Temporary evidence remains available until it or `/tmp` is cleaned up; its location
 is only printed when compilation fails.
@@ -247,8 +259,7 @@ of the selected AI tool's chat output format.
 
 The compilation agent still writes a version-1 `build.json` with language, summary,
 assumptions, native artifact and nonempty build/test argv lists. Generated code,
-tests, module manifests and embedded-resource inputs (including the driver-owned
-`.nutshell-provenance.bin`) go under the temporary
+tests, module manifests and application resources go under the temporary
 `src/` working tree; binaries,
 logs, caches and scratch files stay outside `src/` in the temporary build directory.
 Build commands run from that directory (for Go, use `go -C src build ...`). The

@@ -3,6 +3,26 @@
 Versions follow Semantic Versioning. Dates use YYYY-MM-DD. The matching Git tag
 has a `v` prefix; published tags are never moved.
 
+## [0.10.0] - 2026-10-08
+
+### Added
+- `-ft` / `--fine-tune` for focused follow-up changes against existing `-s` source.
+- Fine-tune prompts supply the request and available `.nut` paths, reading relevant
+  requirements on demand instead of inlining the whole bundle.
+- Early errors for blank requests and absent, empty or metadata-only implementation.
+
+### Removed
+- Embedded `.nut` provenance, resource generation/verification, `inspect`/`diff`,
+  and prior-output snapshots and source comparisons.
+
+### Changed
+- Fine-tune requests override conflicting `.nut` text only within the requested
+  scope. `.nut` files remain unchanged; update lasting requirements separately.
+- Recompilation instructs agents to remove legacy provenance resources and their
+  embedding hooks together; a leftover resource prevents publication.
+- Native builds, tests, rgw-ast, progress and protected publication remain required.
+- This checkout must be installed from source; the latest tagged release is 0.7.0.
+
 ## [0.9.0] - 2026-10-07
 
 ### Added

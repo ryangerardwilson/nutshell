@@ -6,6 +6,7 @@ import (
 	"io/fs"
 	"os"
 	"path/filepath"
+	"slices"
 	"sort"
 	"strings"
 	"unicode/utf8"
@@ -131,7 +132,7 @@ func excludedSourceDirectory(name string) bool {
 
 func (p Program) unchanged() error {
 	current, err := Load(filepath.Join(p.Root, p.Entry))
-	if err != nil || SourceHash(current) != SourceHash(p) {
+	if err != nil || current.Entry != p.Entry || !slices.Equal(current.Sources, p.Sources) {
 		return fmt.Errorf("source changed during compilation: %s", p.Root)
 	}
 	return nil
