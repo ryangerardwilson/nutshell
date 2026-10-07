@@ -105,7 +105,10 @@ func (c sourceContext) unchanged() error {
 }
 
 func hasImplementation(files map[string]string) bool {
-	for _, fingerprint := range files {
+	for name, fingerprint := range files {
+		if name == ProvenanceResource {
+			continue
+		}
 		if strings.HasPrefix(fingerprint, "file:") {
 			return true
 		}

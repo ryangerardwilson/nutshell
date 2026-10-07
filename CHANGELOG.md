@@ -3,6 +3,25 @@
 Versions follow Semantic Versioning. Dates use YYYY-MM-DD. The matching Git tag
 has a `v` prefix; published tags are never moved.
 
+## [0.9.0] - 2026-10-07
+
+### Added
+- Generated executables carry the original `.nut` bundle, compiler identity,
+  implementation language and assumptions as verified embedded provenance.
+- Static `ns inspect` and `ns diff`, with source recovery, JSON output and source
+  comparisons that never execute the inspected program.
+- Prior-output snapshots, provenance and source diffs in compilation-agent context.
+
+### Changed
+- Source discovery now supplies the entry and available `.nut` files beneath its
+  directory. File composition and all syntax, including `from`, `import` and
+  `Include`, belong to the AI compiler.
+- Agents must embed the supplied provenance resource during native compilation;
+  binaries missing it are rejected before publication.
+- Migration: keep intended `.nut` context beneath the entry directory and move
+  unrelated inputs outside it. Hidden and dependency/build directories are skipped.
+  Existing executables need recompilation to gain inspectable provenance.
+
 ## [0.8.0] - 2026-10-07
 
 ### Added

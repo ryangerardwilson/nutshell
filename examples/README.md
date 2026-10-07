@@ -15,7 +15,8 @@ Generated `src/` directories and default `main` binaries are ignored by Git.
 | Program | Demonstrates |
 | --- | --- |
 | [hello](hello/main.nut) | A minimal complete program |
-| [greet](greet/main.nut) | Explicit includes and command-line behavior |
+| [greet](greet/main.nut) | AI-interpreted file composition and command-line behavior |
+| [features](features/main.nut) | Natural-language references across several `.nut` files |
 | [sum](sum/main.nut) | Standard input, arithmetic, validation and failure examples |
 
 These files are executable specifications for the AI, not checked-in generated

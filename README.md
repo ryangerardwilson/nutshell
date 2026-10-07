@@ -60,7 +60,7 @@ the AI is instructed to adapt the existing implementation, including manual edit
 
 ## Install
 
-Nutshell is early software. This checkout is **0.8.0**; the latest tagged release
+Nutshell is early software. This checkout is **0.9.0**; the latest tagged release
 is **0.7.0**. Linux is the primary tested host.
 
 Install with Go 1.26 or newer:
@@ -118,15 +118,41 @@ understood you. Keep the source, inspect the implementation, test the behavior.
 - **Compile visibly.** Short, changing activity summaries show what the agent
   reports it is doing. Build logs stay in the temporary workspace.
 
-“Syntax-free” means no mandatory grammar for describing program behavior.
-There is one small driver directive for composing files:
+“Syntax-free” means the AI interprets the wording, including how files refer to
+one another. These are examples you can write, not driver keywords:
 
 ```text
-Include "rules.nut".
+from feature1.nut import abc
 ```
 
-Everything else is passed to the AI as written. Read the
-[language guide](docs/language.md) for programs that leave less room for guessing.
+```text
+Use the abc behavior described in feature1.nut.
+```
+
+Nutshell supplies the entry file and available `.nut` files beneath its directory.
+The AI decides what the references mean. Read the [language guide](docs/language.md)
+for the discovery boundary and ways to make your intent concrete.
+
+## The binary remembers its source
+
+Every newly compiled executable carries the exact `.nut` input bundle, entry point,
+source hash, compiler identity and recorded assumptions. Inspect it without
+running the program, even if the original source directory is gone:
+
+```sh
+ns inspect ./greet --source
+ns inspect ./greet --json
+ns diff ./greet main.nut
+```
+
+Diff sees changes across the complete bundle, including another `.nut` file that
+changed while `main.nut` stayed the same. The AI gets these tools in its initial
+prompt, plus prior provenance and a source comparison when recompiling an existing
+output. The current source remains authoritative.
+
+The embedded bundle records what the compiler received, not proof that it
+implemented it correctly or used every available file. Older binaries need
+recompilation to acquire this metadata. See [source provenance](docs/provenance.md).
 
 ## What happens on your machine
 
@@ -149,8 +175,9 @@ action. No provider hooks or global configuration are installed.
 
 | Document | What it covers |
 | --- | --- |
-| [Language guide](docs/language.md) | Writing `.nut` programs, examples, includes, assumptions |
+| [Language guide](docs/language.md) | Writing `.nut` programs, file composition, assumptions |
 | [CLI reference](docs/cli.md) | Flags, compiler adapters, source reuse, progress, failures |
+| [Source provenance](docs/provenance.md) | Inspect binaries, recover `.nut` source and compare requirements |
 | [Architecture](docs/architecture.md) | The Go driver, compiler contract, verification, publication |
 | [Examples](examples/) | Small programs you can read and compile |
 | [Installation and releases](docs/releases.md) | One-command install, local updates, version policy and releases |

@@ -75,17 +75,14 @@ Implementation constraints are allowed when you care about them. The AI chooses
 routine details you leave open, including the native implementation language.
 The implementation lives in the directory you select with `-s`; no particular framework is required.
 
-The one directive understood by the driver is a whole-line include:
-
-```text
-Include "rules.nut".
-```
-
-`Include` is case-insensitive and the final period is optional. Paths resolve
-relative to the including file. Absolute paths, parent traversal, symlinks, cycles,
-and non-`.nut` includes are rejected. Only the entry and its explicit includes
-belong to a compilation. Limits: 128 files and 1 MiB of combined UTF-8 source.
-All other text is passed verbatim to the compilation agent, with its filename.
+The driver supplies the selected entry and available `.nut` files recursively
+beneath its directory, preserving names and exact text. It does not parse an
+import language. `from feature1.nut import abc`, `Include "rules.nut"`, and ordinary
+English references are all interpreted by the AI. Discovery skips hidden
+directories and `node_modules`, `vendor`, `target`, `dist`, and `build`; it never
+follows directory symlinks and rejects `.nut` file symlinks. Source is bounded to
+128 nonempty UTF-8 files and 1 MiB of combined text. See the
+[language guide](language.md) for the input boundary.
 
 The compilation agent makes whatever assumptions it needs, including resolving missing
 or conflicting requirements. It records those decisions internally and continues.
@@ -99,6 +96,23 @@ and assumptions when that distinction matters.
 
 See [hello](../examples/hello/main.nut) and the multi-file
 [greeting example](../examples/greet/main.nut).
+
+## Inspect and compare generated programs
+
+```sh
+ns inspect ./app                 # provenance summary
+ns inspect ./app --source        # all original .nut text, labeled by path
+ns inspect ./app --json          # full machine-readable record
+ns diff ./app main.nut           # compare against current available source
+ns diff ./app main.nut --json
+```
+
+These commands read data, never execute the target or invoke an AI, and do not
+require `-c`, `-s`, provider credentials or `rgw-ast`. Diff defaults to `main.nut`.
+Its exit codes are 0 for equality, 1 for differences, and 2 for errors. Inspect
+returns 0 on success and 2 on errors. Use `--` before paths beginning with a dash.
+Legacy binaries without provenance need recompilation. See
+[source provenance](provenance.md) for format and integrity boundaries.
 
 ## Compilation agents
 
@@ -209,7 +223,9 @@ create a `.nutshell/` folder in your project. Old `.nutshell/` folders from earl
 versions are left alone. The temporary directory contains original source
 snapshots, working `src/`, prompts, AI output, build/test logs, assumptions and
 result metadata. When reusing source, `original-src/` keeps its initial snapshot
-and `source-context.json` records its provenance. Child commands use temporary scratch and Go cache directories
+and `source-context.json` records its provenance. Existing output is staged read-only
+as `previous-program`; `previous-context.json` supplies its available provenance
+and source diff or the reason they are unavailable. Child commands use temporary scratch and Go cache directories
 inside that attempt. Authentication and other provider configuration are inherited.
 Temporary evidence remains available until it or `/tmp` is cleaned up; its location
 is only printed when compilation fails.
@@ -231,7 +247,8 @@ of the selected AI tool's chat output format.
 
 The compilation agent still writes a version-1 `build.json` with language, summary,
 assumptions, native artifact and nonempty build/test argv lists. Generated code,
-tests, module manifests and embedded-resource inputs go under the temporary
+tests, module manifests and embedded-resource inputs (including the driver-owned
+`.nutshell-provenance.bin`) go under the temporary
 `src/` working tree; binaries,
 logs, caches and scratch files stay outside `src/` in the temporary build directory.
 Build commands run from that directory (for Go, use `go -C src build ...`). The

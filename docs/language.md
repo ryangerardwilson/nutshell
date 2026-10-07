@@ -83,20 +83,27 @@ For quantities of at least 10, discount the total by 10 percent.
 Use integer arithmetic; these prices never require rounding.
 ```
 
-The driver recognizes only a whole-line directive of this form:
+`Include` in that example is wording for the AI, not a directive recognized by
+the driver. You could instead write `from rules.nut import pricing`, or simply
+“Use the pricing rules described in rules.nut.” The AI decides what references,
+symbols, and their spelling mean. No import syntax is mandatory or privileged.
 
-```text
-Include "relative/path.nut".
-```
+The driver selects the explicit entry (default `main.nut`) and discovers available
+`.nut` files recursively beneath its directory. Their exact text and relative
+paths are supplied together. Other files named `main.nut` can exist in nested
+folders; they are available context, not additional selected entry points.
 
-`Include` is case-insensitive and the trailing period is optional. Paths resolve
-relative to the including file. The driver rejects absolute paths, `..` traversal,
-symlinks, cycles, and includes without a `.nut` extension. Only the entry point
-and explicitly included files are supplied as language source. The bundle is
-limited to 128 files and 1 MiB of combined UTF-8 text.
+Keep intended `.nut` context in this directory tree. Discovery skips hidden
+directories and `node_modules`, `vendor`, `target`, `dist`, and `build`. Directory
+symlinks are not followed; `.nut` file symlinks are rejected. Source must be
+nonempty UTF-8, at most 128 files and 1 MiB total. Files outside that boundary
+are not automatically fetched because a sentence mentions them. The compiler
+makes assumptions about missing information as it does for other ambiguity.
 
-There is no separate import system for English symbols. The agent receives the
-whole source bundle, with filenames, and interprets it together.
+The binary records the complete bundle the AI received, including available files
+it may not have used. Move unrelated `.nut` files outside the source tree if they
+should not be supplied or embedded. Adding or removing an available file changes
+the source bundle even when no reference in `main.nut` changes.
 
 ## Evolve a program
 

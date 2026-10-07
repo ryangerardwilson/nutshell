@@ -86,6 +86,9 @@ func TestAgentReceivesRGWAstWorkflow(t *testing.T) {
 grep -q 'rgw-ast --root src status --json' received-prompt.txt
 grep -q 'even when status reports enforced=false' received-prompt.txt
 grep -q 'patch with --expect-hash' received-prompt.txt
+grep -q 'ns inspect <binary> --source' received-prompt.txt
+grep -q 'ns diff <binary> <entry.nut> --json' received-prompt.txt
+grep -q 'Nutshell has no' received-prompt.txt
 printf 'workflow received' > workflow-received
 exit 9`)
 	r, err := Compile(context.Background(), Options{Entry: entry, SourceDir: filepath.Join(dir, "implementation"), Interpreter: "fake"})
@@ -103,6 +106,7 @@ func TestCompileNativeProgram(t *testing.T) {
 	put(t, filepath.Join(fixture, "src", "go.mod"), "module generated\n\ngo 1.26.0\n")
 	put(t, filepath.Join(fixture, "src", "main.go"), "package main\nimport \"fmt\"\nfunc greeting() string { return \"hello\" }; func main(){fmt.Println(greeting())}\n")
 	put(t, filepath.Join(fixture, "src", "main_test.go"), "package main\nimport \"testing\"\nfunc TestGreeting(t *testing.T){if greeting()!=\"hello\" { t.Fatal(\"wrong greeting\") }}\n")
+	put(t, filepath.Join(fixture, "src", "provenance.go"), embeddedFixture)
 	m := Manifest{Version: 1, Language: "Go", Summary: "Greeting", Artifact: "program", Build: [][]string{{"go", "-C", "src", "build", "-o", "../program", "."}}, Test: [][]string{{"go", "-C", "src", "test", "./..."}}}
 	if err := writeJSON(filepath.Join(fixture, "build.json"), m); err != nil {
 		t.Fatal(err)
@@ -113,6 +117,8 @@ func TestCompileNativeProgram(t *testing.T) {
 echo RAW_PROVIDER_OUTPUT
 sleep 0.3
 cp -R "$NUTSHELL_TEST_FIXTURE/." .`)
+	put(t, entry, "from feature1.nut import abc\nRun abc.\n")
+	put(t, filepath.Join(dir, "feature1.nut"), "abc prints hello followed by a newline.\n")
 	ctx, cancel := context.WithTimeout(context.Background(), time.Minute)
 	defer cancel()
 	var updates []Progress
@@ -149,6 +155,28 @@ cp -R "$NUTSHELL_TEST_FIXTURE/." .`)
 	if err != nil || string(got) != "hello\n" {
 		t.Fatalf("%q %v", got, err)
 	}
+	provenance, err := Inspect(result.Output)
+	if err != nil || len(provenance.Sources) != 2 || provenance.Compiler != "fake" || provenance.Language != "Go" {
+		t.Fatalf("missing published provenance: %+v %v", provenance, err)
+	}
+	current, err := Load(entry)
+	if err != nil || DiffSources(provenance, current).Changed {
+		t.Fatalf("original bundle differs: %v", err)
+	}
+	put(t, filepath.Join(dir, "feature1.nut"), "abc now prints a different greeting.\n")
+	// A second compilation supplies the previous binary and source diff to the agent.
+	next, err := Compile(ctx, Options{Entry: entry, SourceDir: filepath.Join(dir, "src"), Interpreter: "fake"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	var previous previousContext
+	if err := readJSON(filepath.Join(next.Directory, "previous-context.json"), &previous); err != nil || previous.Provenance == nil || previous.Diff == nil || len(previous.Diff.Changes) != 1 || previous.Diff.Changes[0].Path != "feature1.nut" {
+		t.Fatalf("missing prior source context: %+v %v", previous, err)
+	}
+	updated, err := Inspect(next.Output)
+	if err != nil || updated.SourceSHA256 == provenance.SourceSHA256 {
+		t.Fatalf("stale provenance: %+v %v", updated, err)
+	}
 	for _, name := range []string{"source/main.nut", "source.json", "prompt.txt", "received-prompt.txt", "interpreter.log", "verification.log", "result.json"} {
 		if _, err := os.Stat(filepath.Join(result.Directory, name)); err != nil {
 			t.Fatal(err)
@@ -169,6 +197,7 @@ func TestFailedCompilePreservesOutput(t *testing.T) {
 	for _, tc := range []struct{ name, body, want string }{
 		{"provider", "exit 3", "compilation agent failed"},
 		{"missing", "true", "build.json"},
+		{"missing-provenance", "cp \"$NUTSHELL_TEST_SELF\" program\nprintf '%s' '" + base + "' > build.json", "must embed"},
 		{"badjson", "echo nope > build.json", "build.json"},
 		{"tests", "cp \"$NUTSHELL_TEST_SELF\" program\nprintf '%s' '" + strings.Replace(base, `"test":[["true"]]`, `"test":[["false"]]`, 1) + "' > build.json", "test failed"},
 		{"script", "printf '#!/bin/sh\\nexit 0\\n' > program\nchmod +x program\nprintf '%s' '" + base + "' > build.json", "expected native"},
@@ -285,6 +314,7 @@ func TestBuiltInAdapters(t *testing.T) {
 func TestCompileEvolvesExistingImplementation(t *testing.T) {
 	fixture := t.TempDir()
 	put(t, filepath.Join(fixture, "main.go"), "package main\nimport \"fmt\"\nfunc main(){fmt.Println(existingGreeting())}\n")
+	put(t, filepath.Join(fixture, "provenance.go"), embeddedFixture)
 	put(t, filepath.Join(fixture, "main_test.go"), "package main\nimport \"testing\"\nfunc TestExistingGreeting(t *testing.T){if existingGreeting()!=\"hello from existing code\"{t.Fatal(\"existing behavior lost\")}}\n")
 	m := Manifest{Version: 1, Language: "Go", Summary: "Adapt existing code", Artifact: "program", Build: [][]string{{"go", "-C", "src", "build", "-o", "../program", "."}}, Test: [][]string{{"go", "-C", "src", "test", "./..."}}}
 	if err := writeJSON(filepath.Join(fixture, "build.json"), m); err != nil {
@@ -294,6 +324,7 @@ func TestCompileEvolvesExistingImplementation(t *testing.T) {
 	dir, entry := fake(t, `test -f src/existing.go
  test -f original-src/existing.go
  cp "$NUTSHELL_INCREMENTAL_FIXTURE/main.go" src/main.go
+ cp "$NUTSHELL_INCREMENTAL_FIXTURE/provenance.go" src/provenance.go
  cp "$NUTSHELL_INCREMENTAL_FIXTURE/main_test.go" src/main_test.go
  cp "$NUTSHELL_INCREMENTAL_FIXTURE/build.json" build.json`)
 	selected := filepath.Join(dir, "custom implementation")

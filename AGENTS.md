@@ -2,7 +2,10 @@
 
 Nutshell compiles English-first .nut programs into native executables through an
 installed AI CLI. The driver is Go and uses the standard library. Read README.md,
-then docs/architecture.md for the code paths relevant to a change.
+then docs/architecture.md for the code paths relevant to a change. Source discovery
+is syntax-independent: the AI interprets all file-composition wording. Generated
+executables must embed the driver-supplied source provenance resource; consult
+docs/provenance.md when changing builds, inspection or incremental context.
 
 ## OpenSpec
 

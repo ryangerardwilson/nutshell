@@ -96,7 +96,7 @@ func outputPath(p Program, requested string) (string, error) {
 	return abs, nil
 }
 
-func publish(artifact, destination string) error {
+func publish(artifact, destination string, expected *Provenance) error {
 	src, err := os.Open(artifact)
 	if err != nil {
 		return err
@@ -122,6 +122,11 @@ func publish(artifact, destination string) error {
 	}
 	if err = nativeArtifact(tmp.Name()); err != nil {
 		return err
+	}
+	if expected != nil {
+		if err := verifyProvenance(tmp.Name(), *expected); err != nil {
+			return err
+		}
 	}
 	return os.Rename(tmp.Name(), destination)
 }

@@ -151,7 +151,7 @@ func TestIndependentSourceAndBinaryDestinations(t *testing.T) {
 		t.Fatal(err)
 	}
 	put(t, filepath.Join(work, "src", "main.go"), "adapted")
-	if err := publishOutputs(context.Background(), self, filepath.Join(work, "src"), out, c); err != nil {
+	if err := publishOutputs(context.Background(), self, filepath.Join(work, "src"), out, c, nil); err != nil {
 		t.Fatal(err)
 	}
 	data, _ := os.ReadFile(filepath.Join(entryRoot, "src", "main.go"))

@@ -24,6 +24,8 @@ const help = `nutshell — compile English-first .nut programs with your AI tool
 
 Usage: nutshell [main.nut] -c <codex|grok|claude|custom> -s <path> [-o output]
        ns [main.nut] -c <codex|grok|claude|custom> -s <path> [-o output]
+       ns inspect <binary> [--source | --json]
+       ns diff <binary> [entry.nut] [--json]
 
   -c, --compiler TOOL     AI compilation agent (required)
   -s, --source PATH       Implementation directory to read and update (required)
@@ -118,6 +120,9 @@ func parse(args []string) (arguments, error) {
 }
 
 func execute(ctx context.Context, args []string, out, errOut io.Writer) int {
+	if len(args) > 0 && (args[0] == "inspect" || args[0] == "diff") {
+		return inspectCommand(args, out, errOut)
+	}
 	o, err := parse(args)
 	if err != nil {
 		fmt.Fprintf(errOut, "nutshell: %v\nRun nutshell --help for usage.\n", err)
@@ -135,6 +140,7 @@ func execute(ctx context.Context, args []string, out, errOut io.Writer) int {
 	defer cancel()
 	display := newProgressDisplay(errOut, isTerminal(errOut))
 	o.OnProgress = display.update
+	o.NutshellVersion = version
 	result, err := compiler.Compile(ctx, o.Options)
 	display.finish(err)
 	if err != nil {
