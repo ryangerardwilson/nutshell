@@ -247,4 +247,3 @@ Tests cover source loading, command adapters, a fake compilation agent with a re
 build/test cycle, native output, live progress updates, quiet terminal rendering,
 cancellation, source changes, source publication rollback and previous-output
 preservation. Unit tests do not call paid AI services.
-
