@@ -1,0 +1,13 @@
+{
+  "name": "nutshell-dev",
+  "private": true,
+  "description": "OpenSpec development tooling for the Go Nutshell compiler",
+  "scripts": {
+    "specs:list": "openspec list --specs",
+    "specs:changes": "openspec list",
+    "specs:validate": "openspec validate --specs --strict --no-interactive"
+  },
+  "devDependencies": {
+    "@fission-ai/openspec": "1.6.0"
+  }
+}

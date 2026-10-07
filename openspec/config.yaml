@@ -1,0 +1,20 @@
+schema: spec-driven
+
+context: |
+  Nutshell is an open-source, English-first programming language and Go CLI.
+  main.nut is the default entry. An installed AI compilation agent chooses the
+  implementation language and produces source, tests and a native build manifest.
+  All development happens in /tmp. The user selects the compiler with -c and
+  implementation context/output with -s. Compilation is unattended, using the
+  provider's default model and full permissions. Agents must use rgw-ast.
+  Product truth lives in this repository, independent of any parent workspace.
+  See README.md, docs/language.md, docs/cli.md and docs/architecture.md.
+
+rules:
+  proposal:
+    - Describe the observable problem, outcome, scope and migration impact.
+  specs:
+    - Use SHALL or MUST and concrete scenarios, including failure behavior.
+    - Repeat the full requirement when modifying an accepted requirement.
+  tasks:
+    - Include strict validation and relevant tests; complete only verified work.

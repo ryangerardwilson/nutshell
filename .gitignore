@@ -1,0 +1,17 @@
+# Local builds and generated implementations
+/nutshell
+/nutshell.exe
+/.nutshell/
+/examples/**/main
+/examples/**/main.exe
+/examples/**/src/
+/examples/**/implementation/
+
+# Developer tools and local configuration
+/node_modules/
+.env
+.env.*
+!.env.example
+.DS_Store
+*.test
+coverage.out
