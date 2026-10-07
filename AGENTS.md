@@ -37,6 +37,20 @@ adapter fixtures for compiler integration; they build and test real Go programs.
 Keep credentials, generated binaries, provider transcripts and build directories
 out of Git. Do not download or install Codex skills, bundles or plugins.
 
+## Local installation and versioning
+
+After completing a feature or fix, run tests and vet, validate release metadata
+with `./scripts/check-release.sh`, then run `./install.sh from "$PWD"` and verify
+`"${NUTSHELL_INSTALL_DIR:-$HOME/.local/bin}/nutshell" --version`. Install directly
+from the changed checkout; do not download a release as a substitute. Report the
+installed version and checks. Documentation-only changes need no reinstall.
+
+Read docs/releases.md before changing VERSION or publishing. VERSION is embedded
+in the binary; update its matching CHANGELOG entry for user-visible changes.
+Published tags are immutable. Public release publication is separate from local
+installation and requires an explicit release task. Do not tag or publish merely
+because a local feature or fix is complete.
+
 <!-- rgw-ast:begin -->
 # rgw-ast boundary
 

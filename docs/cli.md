@@ -10,10 +10,14 @@ All generation, compilation and testing happen under `/tmp`.
 
 ## Start
 
+For a public release, use `go install github.com/ryangerardwilson/nutshell@latest`.
+See [installation and versioning](releases.md) for PATH setup, pinned versions and
+upgrades. The instructions below install your local checkout.
+
 From the repository root, install with Go 1.26 or newer:
 
 ```sh
-./install.sh
+./install.sh from "$PWD"
 ```
 
 The installer writes `~/.local/bin/nutshell`. Set `NUTSHELL_INSTALL_DIR` to change

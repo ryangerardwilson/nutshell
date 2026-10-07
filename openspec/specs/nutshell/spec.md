@@ -62,12 +62,17 @@ Each invocation SHALL perform generation, building and testing in a distinct pri
 - **THEN** the previous binary and source SHALL remain intact.
 
 ### Requirement: Local command installation
-The compiler SHALL be written in Go, installed as nutshell and provide help and version without starting an AI session. Installation SHALL use local source and SHALL NOT retrieve Codex skills or plugin bundles. Documentation SHALL explain the language boundary, permission defaults, external CLI authentication and the difference between passing generated tests and proving English behavior.
+The compiler SHALL be written in Go, installed as nutshell and provide help and version without starting an AI session. Public users SHALL be able to install a tagged version with go install github.com/ryangerardwilson/nutshell@<version>, or select the latest tagged version with @latest. Local installation SHALL build the selected checkout via install.sh from <path>, defaulting to the script checkout when no arguments are given. It SHALL install atomically into NUTSHELL_INSTALL_DIR or ~/.local/bin and preserve an existing binary when a build fails. Invalid installer arguments SHALL fail before building. Installation SHALL NOT retrieve Codex skills, plugin bundles, AI providers or rgw-ast. Documentation SHALL explain prerequisites, permissions and compiler verification limits.
 
-#### Scenario: Install and inspect
-- **GIVEN** the local compiler checkout and a Go toolchain
-- **WHEN** the local installer runs
-- **THEN** nutshell help and nutshell version SHALL work without invoking a provider.
+#### Scenario: Install updated local source
+- **GIVEN** a local checkout and a Go toolchain
+- **WHEN** the installer is invoked with from and that checkout's path
+- **THEN** it SHALL build that source, replace the local binary only on success and report its version without invoking a provider.
+
+#### Scenario: Public version install
+- **GIVEN** a published semantic-version tag and a Go toolchain
+- **WHEN** a user installs that module version
+- **THEN** the binary SHALL report the version associated with the tag.
 
 ### Requirement: Quiet progress reporting
 The compilation agent SHALL be instructed to send structured stage updates with specific 3–7-word descriptions of current work, beginning with its first tool action and continuing before meaningful actions within each stage. Nutshell SHALL display changing summaries in a compact terminal progress bar with elapsed time, and as concise lines when redirected. Valid summaries SHALL NOT be truncated at a fixed 35-character boundary. Raw AI and build transcripts SHALL remain in temporary logs. Invalid, missing or duplicate updates SHALL NOT fail compilation or flood the display. Later activities in earlier stages MAY update the summary but SHALL NOT regress milestone progress. Progress SHALL represent milestones rather than a time estimate, and completion SHALL only be shown after verification and publication. Compilation SHALL have no interactive question-and-answer phase.
@@ -117,3 +122,16 @@ Nutshell SHALL require an executable rgw-ast on PATH before launching a compilat
 - **GIVEN** an installed compiler and rgw-ast
 - **WHEN** Nutshell launches the selected agent for a new or existing implementation
 - **THEN** the shared prompt SHALL require the rgw-ast workflow against the existing temporary src directory, independent of the enforcement threshold.
+
+### Requirement: Disciplined versioned releases
+VERSION SHALL be the authoritative semantic version embedded in the binary. Each release SHALL have a dated CHANGELOG entry and an immutable matching v-prefixed Git tag. CI SHALL validate version and changelog consistency; release CI SHALL also match the tag. The release command SHALL require a clean main branch matching origin/main, successful tests and checks, and an unused version tag before tagging and pushing. Public release notes SHALL derive from that version's changelog entry. Documentation SHALL distinguish patch fixes, minor additions and pre-1.0 breaking changes, and post-1.0 major breaking changes. Local agents SHALL verify and reinstall completed feature/fix changes from source; local installation SHALL NOT itself publish a release.
+
+#### Scenario: Mismatched release tag
+- **GIVEN** a tag differs from VERSION
+- **WHEN** release validation runs
+- **THEN** validation SHALL fail and no GitHub release SHALL be published.
+
+#### Scenario: Local update without release
+- **GIVEN** an agent has completed a verified feature or fix
+- **WHEN** it installs that checkout locally
+- **THEN** the installed command SHALL reflect the checkout without creating or moving any release tag.

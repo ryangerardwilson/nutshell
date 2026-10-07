@@ -52,19 +52,22 @@ the AI is instructed to adapt the existing implementation, including manual edit
 
 ## Install
 
-Nutshell is early software, currently **0.6.0**. Linux is the primary tested host.
+Nutshell is early software, currently **0.7.0**. Linux is the primary tested host.
 
-Build the driver with Go 1.26 or newer:
+Install with Go 1.26 or newer:
 
 ```sh
-git clone https://github.com/ryangerardwilson/nutshell.git
-cd nutshell
-./install.sh
+go install github.com/ryangerardwilson/nutshell@latest
 ```
 
-The installer writes `~/.local/bin/nutshell`. Add that directory to `PATH`, or set
-`NUTSHELL_INSTALL_DIR` to a location on your path. It builds local source;
-it does not install AI providers or fetch skills.
+Add `$(go env GOPATH)/bin` to `PATH` (or your `GOBIN` if set). To install directly
+into `~/.local/bin`, prefix the command with `GOBIN="$HOME/.local/bin"`.
+Use `@v0.7.0` to pin this release; repeat `@latest` to upgrade.
+
+For local development, run `./install.sh from "$PWD"` inside the checkout. This
+builds your current source and installs into `~/.local/bin`, or the directory set
+by `NUTSHELL_INSTALL_DIR`. It does not install AI providers or fetch skills.
+See [installation and releases](docs/releases.md) for local updates and version policy.
 
 To compile `.nut` programs, you also need:
 
@@ -141,6 +144,7 @@ action. No provider hooks or global configuration are installed.
 | [CLI reference](docs/cli.md) | Flags, compiler adapters, source reuse, progress, failures |
 | [Architecture](docs/architecture.md) | The Go driver, compiler contract, verification, publication |
 | [Examples](examples/) | Small programs you can read and compile |
+| [Installation and releases](docs/releases.md) | One-command install, local updates, version policy and releases |
 | [Contributing](CONTRIBUTING.md) | Local development, tests, OpenSpec, useful contributions |
 | [Accepted specification](openspec/specs/nutshell/spec.md) | The current behavioral contract |
 

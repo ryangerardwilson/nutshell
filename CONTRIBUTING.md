@@ -49,6 +49,14 @@ After implementation and verification, update the accepted spec and archive the
 change. Conformance fixes, documentation corrections, formatting, and tests of
 existing behavior do not require a new proposal.
 
+## Install and version your changes
+
+After feature or fix work passes tests and vet, run `./scripts/check-release.sh`,
+then `./install.sh from "$PWD"`. Verify the version at the exact installation path.
+This updates your local command from your checkout without publishing anything.
+Read [the release guide](docs/releases.md) for VERSION, changelog, semantic version
+rules, public one-command installation and the separate release workflow.
+
 ## Submit a useful pull request
 
 Describe the observable problem and the resulting behavior. Include a small

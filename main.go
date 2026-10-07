@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	_ "embed"
 	"errors"
 	"fmt"
 	"io"
@@ -14,7 +15,10 @@ import (
 	"github.com/ryangerardwilson/nutshell/internal/compiler"
 )
 
-const version = "0.6.0"
+//go:embed VERSION
+var versionFile string
+
+var version = strings.TrimSpace(versionFile)
 
 const help = `nutshell — compile English-first .nut programs with your AI tool
 
