@@ -60,7 +60,7 @@ the AI is instructed to adapt the existing implementation, including manual edit
 
 ## Install
 
-Nutshell is early software. This checkout is **0.10.0**; the latest tagged release
+Nutshell is early software. This checkout is **0.11.0**; the latest tagged release
 is **0.7.0**. Linux is the primary tested host.
 
 Install with Go 1.26 or newer:
@@ -136,19 +136,29 @@ for the discovery boundary and ways to make your intent concrete.
 ## Small change? Fine-tune it.
 
 ```sh
-nutshell main.nut -c grok -o app -s ./src -ft "replace x with y"
+nutshell main.nut -c grok -o app -s ./src -f "replace x with y" -l 5
 # --fine-tune is the long form; ns works too.
 ```
 
-`-ft` gives the compiler one focused task against the existing `-s` implementation.
+`-f` gives the compiler one focused task against the existing `-s` implementation.
 It is instructed to keep the language and architecture, preserve unrelated work,
-and read only the relevant code and `.nut` context. Existing source is required.
+and edit only relevant code. It first reviews all supplied `.nut` instructions
+for conflicts with the request. Existing source is required.
 Nutshell still builds, tests and verifies the result before replacing your outputs.
 Provider speed and build time still apply; there is no fixed latency guarantee.
 
-The request takes precedence over conflicting `.nut` text only for that change.
-Your `.nut` files are left untouched. Record lasting behavior changes there before
-a future full compilation, which follows the `.nut` program again.
+**The `.nut` files win.** A request to change "hello world" into "hello everyone"
+is rejected if the source requires "hello world". Errors point to the conflicting
+file and exact lines, with the source text and an explanation. Change the request
+or edit the `.nut` instructions first. Rejection leaves source and binary intact.
+Semantic conflict detection is the AI's judgment; Nutshell validates its reported
+locations and quotations and rejects missing or invalid reviews.
+
+`-l 5` (or `--limit 5`) tells the AI you expect completion within five minutes,
+without unnecessary complexity. It accepts a positive integer number of minutes,
+for full builds or fine tuning. This is an expectation, not a guaranteed deadline;
+`--timeout 5m` sets a hard cutoff. Required checks still apply. The former `-ft`
+flag now reports migration guidance to `-f`.
 
 Binaries carry the application, without Nutshell's source metadata. Version 0.10.0
 removes embedded provenance and the `inspect`/`diff` commands. Keep your `.nut`

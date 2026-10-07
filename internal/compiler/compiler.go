@@ -3,6 +3,7 @@ package compiler
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"os"
@@ -14,13 +15,14 @@ import (
 )
 
 type Options struct {
-	FineTune    string
-	Entry       string
-	Interpreter string
-	SourceDir   string
-	Output      string
-	Log         io.Writer
-	OnProgress  func(Progress)
+	FineTune     string
+	LimitMinutes int
+	Entry        string
+	Interpreter  string
+	SourceDir    string
+	Output       string
+	Log          io.Writer
+	OnProgress   func(Progress)
 }
 
 type Manifest struct {
@@ -54,6 +56,9 @@ type lockedWriter struct {
 func (w *lockedWriter) Write(p []byte) (int, error) { w.Lock(); defer w.Unlock(); return w.w.Write(p) }
 
 func Compile(ctx context.Context, opts Options) (result Result, err error) {
+	if opts.LimitMinutes < 0 {
+		return result, fmt.Errorf("limit must be a positive integer number of minutes")
+	}
 	if opts.Log == nil {
 		opts.Log = io.Discard
 	}
@@ -75,7 +80,7 @@ func Compile(ctx context.Context, opts Options) (result Result, err error) {
 			return result, fmt.Errorf("fine tuning requires a nonblank change request")
 		}
 		if !hasImplementation(baseline.Input.Files) {
-			return result, fmt.Errorf("fine tuning requires existing implementation files in -s; compile once without -ft first")
+			return result, fmt.Errorf("fine tuning requires existing implementation files in -s; compile once without -f first")
 		}
 	}
 	a, err := Resolve(opts.Interpreter)
@@ -122,7 +127,7 @@ func Compile(ctx context.Context, opts Options) (result Result, err error) {
 		return result, err
 	}
 	_, legacyProvenance := baseline.Input.Files[legacyProvenanceResource]
-	prompt := promptFor(p, opts.FineTune, legacyProvenance)
+	prompt := promptFor(p, opts.FineTune, legacyProvenance, opts.LimitMinutes)
 	promptFile := filepath.Join(dir, "prompt.txt")
 	if err = os.WriteFile(promptFile, []byte(prompt), 0600); err != nil {
 		return result, err
@@ -136,6 +141,18 @@ func Compile(ctx context.Context, opts Options) (result Result, err error) {
 	runErr := run(ctx, dir, argv, stdin, &lockedWriter{w: log})
 	stopProgress()
 	closeErr := log.Close()
+	if err = ctx.Err(); err != nil {
+		return result, err
+	}
+	if opts.FineTune != "" {
+		if err = checkFineTuneReview(dir, p); err != nil {
+			// Preserve provider failure details without losing source conflict diagnostics.
+			if runErr != nil {
+				err = errors.Join(err, fmt.Errorf("compilation agent failed: %w", runErr))
+			}
+			return result, err
+		}
+	}
 	if runErr != nil {
 		return result, fmt.Errorf("compilation agent failed: %w", runErr)
 	}

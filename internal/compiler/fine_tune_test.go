@@ -14,8 +14,8 @@ import (
 func TestFineTunePrompt(t *testing.T) {
 	p := Program{Entry: "main.nut", Sources: []Source{{"main.nut", "Print the original greeting."}, {"feature.nut", "Unrelated feature details."}}}
 	request := "replace x with \"y\"; preserve 100%\nand all other behavior"
-	prompt := promptFor(p, request, false)
-	for _, want := range []string{"FINE-TUNE MODE", `replace x with \"y\"; preserve 100%\nand all other behavior`, "source/main.nut", "source/feature.nut", "takes precedence", "Preserve all unrelated behavior", "rgw-ast --root src status --json", "build.json"} {
+	prompt := promptFor(p, request, false, 0)
+	for _, want := range []string{"FINE-TUNE MODE", `replace x with \"y\"; preserve 100%\nand all other behavior`, "source/main.nut", "source/feature.nut", "MUST NOT override", "read ALL supplied", "fine-tune.json", "Preserve all unrelated behavior", "rgw-ast --root src status --json", "build.json"} {
 		if !strings.Contains(prompt, want) {
 			t.Errorf("missing %q", want)
 		}
@@ -25,11 +25,11 @@ func TestFineTunePrompt(t *testing.T) {
 			t.Errorf("unexpected %q", unwanted)
 		}
 	}
-	full := promptFor(p, "", false)
+	full := promptFor(p, "", false, 0)
 	if !strings.Contains(full, p.Sources[0].Text) || !strings.Contains(full, "FULL COMPILATION") {
 		t.Fatal("full compilation lost requirements")
 	}
-	migration := promptFor(p, "change greeting", true)
+	migration := promptFor(p, "change greeting", true, 0)
 	if !strings.Contains(migration, "Remove that resource AND") {
 		t.Fatal("missing legacy migration")
 	}
@@ -82,8 +82,9 @@ test -f original-src/provenance.go
 rm src/provenance.go src/.nutshell-provenance.bin
 cp "$NUTSHELL_FINE_TUNE_FIXTURE/main.go" src/main.go
 cp "$NUTSHELL_FINE_TUNE_FIXTURE/main_test.go" src/main_test.go
-cp "$NUTSHELL_FINE_TUNE_FIXTURE/build.json" build.json`)
-	put(t, entry, "Print x followed by a newline.\n")
+cp "$NUTSHELL_FINE_TUNE_FIXTURE/build.json" build.json
+printf '%s' '{"version":1,"status":"compatible","reviewed_sources":["main.nut"],"conflicts":[]}' > fine-tune.json`)
+	put(t, entry, "Print y followed by a newline.\n")
 	src := filepath.Join(dir, "src")
 	put(t, filepath.Join(src, "go.mod"), "module fine\n\ngo 1.26.0\n")
 	put(t, filepath.Join(src, "main.go"), strings.ReplaceAll(newCode, `"y"`, `"x"`))
@@ -109,7 +110,7 @@ cp "$NUTSHELL_FINE_TUNE_FIXTURE/build.json" build.json`)
 			t.Fatalf("legacy file retained: %s", name)
 		}
 	}
-	for path, want := range map[string]string{entry: "Print x followed by a newline.\n", filepath.Join(src, "manual.txt"): "preserve this user asset"} {
+	for path, want := range map[string]string{entry: "Print y followed by a newline.\n", filepath.Join(src, "manual.txt"): "preserve this user asset"} {
 		data, err := os.ReadFile(path)
 		if err != nil || string(data) != want {
 			t.Fatalf("unexpected change to %s: %q %v", path, data, err)
@@ -149,5 +150,89 @@ func TestLegacyResourceBlocksPublication(t *testing.T) {
 	data, err := os.ReadFile(output)
 	if err != nil || string(data) != string(oldBinary) {
 		t.Fatal("previous output replaced")
+	}
+}
+
+func TestFineTuneReviewBlocksBuildAndPublication(t *testing.T) {
+	for _, kind := range []string{"conflict", "conflict-nonzero", "missing", "invalid", "symlink"} {
+		t.Run(kind, func(t *testing.T) {
+			fixture := t.TempDir()
+			manifest := Manifest{Version: 1, Language: "fixture", Summary: "must not run", Artifact: "program", Build: [][]string{{"touch", "build-ran"}}, Test: [][]string{{"true"}}}
+			if err := writeJSON(filepath.Join(fixture, "build.json"), manifest); err != nil {
+				t.Fatal(err)
+			}
+			if err := writeJSON(filepath.Join(fixture, "fine-tune.json"), conflictReview()); err != nil {
+				t.Fatal(err)
+			}
+			t.Setenv("NUTSHELL_REVIEW_FIXTURE", fixture)
+			body := `cp "$NUTSHELL_REVIEW_FIXTURE/build.json" build.json
+printf 'unwanted temporary edit' > src/manual.txt
+`
+			switch kind {
+			case "conflict", "conflict-nonzero":
+				body += `cp "$NUTSHELL_REVIEW_FIXTURE/fine-tune.json" fine-tune.json`
+			case "invalid":
+				body += `printf '{}' > fine-tune.json`
+			case "symlink":
+				body += `ln -s "$NUTSHELL_REVIEW_FIXTURE/fine-tune.json" fine-tune.json`
+			}
+			if kind == "conflict-nonzero" {
+				body += "\nexit 9"
+			}
+			dir, entry := fake(t, body)
+			put(t, entry, "A greeting program.\n\nPrint hello world.\n")
+			put(t, filepath.Join(dir, "features", "greeting.nut"), "Keep these words:\r\nhello world\r\nunchanged.\r\n")
+			src, output := filepath.Join(dir, "src"), filepath.Join(dir, "app")
+			put(t, filepath.Join(src, "manual.txt"), "original implementation")
+			self, err := os.Executable()
+			if err != nil {
+				t.Fatal(err)
+			}
+			binary, err := os.ReadFile(self)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if err := os.WriteFile(output, binary, 0700); err != nil {
+				t.Fatal(err)
+			}
+			baseline, err := captureContext(src, output)
+			if err != nil {
+				t.Fatal(err)
+			}
+			p, err := Load(entry)
+			if err != nil {
+				t.Fatal(err)
+			}
+			result, err := Compile(context.Background(), Options{Entry: entry, Interpreter: "fake", SourceDir: src, Output: output, FineTune: "replace world with everyone", LimitMinutes: 5})
+			if err == nil || result.Status != "failed" {
+				t.Fatalf("%+v %v", result, err)
+			}
+			if strings.HasPrefix(kind, "conflict") {
+				for _, want := range []string{"fine-tune conflicts", entry + ":3:", filepath.Join(dir, "features/greeting.nut") + ":1-3:"} {
+					if !strings.Contains(err.Error(), want) {
+						t.Fatalf("%s missing in %v", want, err)
+					}
+				}
+			} else if !strings.Contains(err.Error(), "fine-tune.json") {
+				t.Fatal(err)
+			}
+			if _, err := os.Stat(filepath.Join(result.Directory, "build-ran")); !os.IsNotExist(err) {
+				t.Fatal("executed build despite rejected review")
+			}
+			if err := baseline.unchanged(); err != nil {
+				t.Fatal(err)
+			}
+			if err := p.unchanged(); err != nil {
+				t.Fatal(err)
+			}
+			current, err := os.ReadFile(output)
+			if err != nil || string(current) != string(binary) {
+				t.Fatal("changed existing binary")
+			}
+			prompt, err := os.ReadFile(filepath.Join(result.Directory, "prompt.txt"))
+			if err != nil || !strings.Contains(string(prompt), "no longer than 5 minutes") {
+				t.Fatal("provider did not receive time expectation")
+			}
+		})
 	}
 }

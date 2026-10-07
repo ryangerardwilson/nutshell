@@ -102,25 +102,60 @@ See [hello](../examples/hello/main.nut) and the multi-file
 For a targeted follow-up edit, use existing implementation source:
 
 ```sh
-nutshell main.nut -c grok -o app -s ./src -ft "replace x with y"
+nutshell main.nut -c grok -o app -s ./src -f "replace x with y" -l 5
 ns main.nut -c codex -s ./src --fine-tune "Reject negative quantities"
 ```
 
-`-ft` and `--fine-tune` accept one quoted, nonblank change request. Flags work
+`-f` and `--fine-tune` accept one quoted, nonblank change request. Flags work
 before or after the entry; `--fine-tune="replace x with y"` also works. The `-s`
 directory must already contain implementation files. Missing, empty or
-metadata-only source fails before invoking the AI; compile without `-ft` first.
+metadata-only source fails before invoking the AI; compile without `-f` first.
 
-The AI receives the focused request and `.nut` snapshot paths instead of all
-requirements inline. It is instructed to inspect relevant code, keep the existing
-language and architecture, preserve unrelated behavior, and update tests for the
-change. It does not need to re-audit the whole program. Builds, tests, progress,
-rgw-ast and publication checks remain required. Speed still depends on the AI,
-project and toolchain.
+The AI receives the request and `.nut` snapshot paths. It reviews all supplied
+`.nut` instructions for conflicts before editing relevant implementation code.
+It preserves unrelated behavior, language and architecture. A compatible request
+continues through the normal build, tests, rgw-ast and publication checks.
 
-The request overrides conflicting `.nut` requirements only within its scope.
-Nutshell leaves your `.nut` files unchanged. Update them separately for lasting
-behavior changes: the next compilation without `-ft` follows those requirements.
+`.nut` instructions always take precedence. For a source line that requires
+`hello world`, requesting `replace world with everyone` is rejected. Diagnostics
+identify every observed conflict across files with one-based line numbers, exact
+source text and a reason, for example:
+
+```text
+nutshell: fine-tune conflicts with .nut instructions:
+/project/main.nut:3: Replacing world changes the required literal output.
+  3 | Print exactly "hello world" followed by a newline.
+/project/features/greeting.nut:2: The request changes the required greeting.
+  2 | The output text must be exactly "hello world".
+Change the fine-tune request, or update the .nut instructions first.
+```
+
+A conflict returns exit status 1 without running declared build commands or
+publishing outputs. `.nut` inputs, implementation and binary stay unchanged.
+Missing or invalid reviews also fail; the AI cannot proceed merely by omitting
+its review. The driver validates paths, line ranges and quoted source text.
+Semantic conflict detection still depends on the selected AI. Source changes
+during review invalidate diagnostics rather than reporting stale line numbers.
+The former `-ft` flag is rejected with guidance to use `-f` or `--fine-tune`.
+
+## AI time expectation
+
+```sh
+ns main.nut -c grok -s ./src -f "Fix the greeting spacing" -l 5
+ns main.nut -c codex -s ./src --limit 10 --timeout 15m
+```
+
+`-l` / `--limit` takes a positive integer number of minutes, such as `5`, not `5m`
+or `1.5`. It works with full compilation and fine tuning, before or after the entry,
+and as `--limit=5`. Missing, zero, negative, nonnumeric or overflowing values fail
+before invoking an AI. Without it, no user time expectation is added to the prompt.
+
+The prompt tells the AI that the user expects work to take no longer than that
+many minutes and asks it to avoid unnecessary complexity. This is a planning
+expectation, not a runtime guarantee. `--timeout` independently controls the hard
+process deadline (default 30 minutes); `-l 5 --timeout 10m` requests five minutes
+but allows the process at most ten. Neither relaxes conflict checks, rgw-ast or
+required build/test verification.
 
 Version 0.10.0 removes `inspect`, `diff`, prior-binary context and embedded `.nut`
 provenance. Existing 0.9 source can be reused; the agent is told to remove the old

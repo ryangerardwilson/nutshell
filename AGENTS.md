@@ -3,8 +3,11 @@
 Nutshell compiles English-first .nut programs into native executables through an
 installed AI CLI. The driver is Go and uses the standard library. Read README.md,
 then docs/architecture.md for the code paths relevant to a change. Source discovery
-is syntax-independent: the AI interprets all file-composition wording. Fine tuning (-ft / --fine-tune) targets a requested change against existing -s
-source, with .nut context available on demand. Generated executables carry no
+is syntax-independent: the AI interprets all file-composition wording. Fine tuning (-f / --fine-tune) targets a requested change against existing -s
+source. All supplied .nut instructions must be reviewed first; conflicts cannot
+be overridden. The driver requires a validated fine-tune.json review. -l / --limit
+sets an AI time expectation in minutes; --timeout remains the hard cutoff.
+Generated executables carry no
 Nutshell provenance resource. See docs/cli.md for precedence and migration.
 
 ## OpenSpec

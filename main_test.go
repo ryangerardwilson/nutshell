@@ -5,6 +5,7 @@ import (
 	"context"
 	"strings"
 	"testing"
+	"time"
 )
 
 func TestParse(t *testing.T) {
@@ -53,7 +54,7 @@ func TestOldCompilerFlagsGiveMigrationGuidance(t *testing.T) {
 
 func TestFineTuneArguments(t *testing.T) {
 	request := "replace x with y\nkeep 100% of other behavior"
-	for _, flags := range [][]string{{"-ft", request}, {"--fine-tune", request}, {"-ft=" + request}, {"--fine-tune=" + request}} {
+	for _, flags := range [][]string{{"-f", request}, {"--fine-tune", request}, {"-f=" + request}, {"--fine-tune=" + request}} {
 		for _, before := range []bool{true, false} {
 			args := []string{"main.nut", "-c", "grok", "-o", "app", "-s", "./src"}
 			if before {
@@ -67,10 +68,46 @@ func TestFineTuneArguments(t *testing.T) {
 			}
 		}
 	}
-	for _, flags := range [][]string{{"-ft"}, {"-ft", ""}, {"--fine-tune="}, {"-ft", " \n\t"}} {
+	for _, flags := range [][]string{{"-f"}, {"-f", ""}, {"--fine-tune="}, {"-f", " \n\t"}} {
 		args := append([]string{"-c", "grok", "-s", "./src"}, flags...)
 		if _, err := parse(args); err == nil {
 			t.Fatalf("accepted %v", args)
+		}
+	}
+}
+
+func TestTimeLimitArguments(t *testing.T) {
+	for _, flags := range [][]string{{"-l", "5"}, {"--limit", "5"}, {"-l=5"}, {"--limit=5"}} {
+		for _, before := range []bool{true, false} {
+			args := []string{"main.nut", "-c", "grok", "-s", "src", "-f", "fix spacing", "--timeout", "10m"}
+			if before {
+				args = append(append([]string{}, flags...), args...)
+			} else {
+				args = append(args, flags...)
+			}
+			o, err := parse(args)
+			if err != nil || o.LimitMinutes != 5 || o.Timeout != 10*time.Minute {
+				t.Fatalf("%v: %+v %v", args, o, err)
+			}
+		}
+	}
+	o, err := parse([]string{"-c", "grok", "-s", "src", "-l", "5"})
+	if err != nil || o.FineTune != "" || o.LimitMinutes != 5 || o.Timeout != 30*time.Minute {
+		t.Fatalf("%+v %v", o, err)
+	}
+	for _, flags := range [][]string{{"-l"}, {"-l="}, {"-l", "0"}, {"-l", "-1"}, {"--limit", "1.5"}, {"-l", "5m"}, {"-l", "five"}, {"-l", "9999999999999999999999999"}} {
+		if _, err := parse(append([]string{"-c", "grok", "-s", "src"}, flags...)); err == nil {
+			t.Fatalf("accepted %v", flags)
+		}
+	}
+}
+
+func TestOldFineTuneFlagGivesMigrationGuidance(t *testing.T) {
+	for _, flag := range []string{"-ft", "-ft=fix"} {
+		var out, errs bytes.Buffer
+		code := execute(context.Background(), []string{"-c", "grok", "-s", "src", flag}, &out, &errs)
+		if code != 2 || !strings.Contains(errs.String(), "replaced by -f") {
+			t.Fatalf("%d %s", code, errs.String())
 		}
 	}
 }

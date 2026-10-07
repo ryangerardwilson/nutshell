@@ -30,7 +30,8 @@ entry + available .nut files       selected implementation (-s)
    the shared compilation prompt.
 4. Start the AI with unattended full-permission settings and no model override.
    Read activity updates while its output goes to a temporary log.
-5. Parse the strict versioned build manifest and run its build and test commands.
+5. For fine tuning, validate fine-tune.json and reject conflicts or invalid reviews.
+   Then parse the strict versioned build manifest and run its build/test commands.
 6. Validate a native executable for the host and check for concurrent source
    changes. Publish source and binary under publication locks. Roll back source
    if binary publication fails.
@@ -80,15 +81,36 @@ summary without moving the bar backward. Raw chat is not the progress protocol.
 ## Full compilation and fine tuning
 
 Full compilation supplies the complete `.nut` bundle in the agent prompt.
-`-ft` / `--fine-tune` instead supplies a focused change request and a list of
-snapshot paths. The same snapshots and `source.json` remain available in `/tmp`,
-but the AI is instructed to read only relevant requirements and implementation.
-The request takes precedence within its stated scope; unrelated behavior, language
-and architecture are preserved. Neither mode rewrites `.nut` inputs.
+`-f` / `--fine-tune` instead supplies a focused change request and a list of
+snapshot paths. The AI must review all supplied `.nut` instructions against the
+request before implementation. Only relevant implementation is inspected and
+changed after compatibility is established. `.nut` instructions take precedence;
+unrelated behavior, language and architecture are preserved.
 
-Fine tuning rejects missing, empty or metadata-only implementation context before
-invoking a provider. Both modes use the same progress, rgw-ast, build/test and
-publication pipeline. This reduces requested analysis work, not verification.
+The agent writes `fine-tune.json` in the temporary build directory. Version 1 has
+`status` (`compatible` or `conflict`), `reviewed_sources` (every supplied relative
+`.nut` path exactly once) and `conflicts` (an array, empty only for compatible).
+Each conflict has `path`, `start_line`, `end_line`, `quote` and `reason`. Lines are
+one-based and inclusive, including blank lines. Quotes preserve complete lines
+joined by LF with CRLF normalized and the last terminator omitted.
+
+The driver requires a regular bounded JSON file and validates schema, source
+coverage, paths, ranges and exact quotations against its original in-memory input
+snapshot. It rejects missing or invalid reviews before build/test commands or
+publication. Valid conflicts produce diagnostics using original project paths and
+source text, even if the agent exits nonzero. Changed inputs invalidate the review;
+cancellation keeps its normal behavior. The source report stays under `/tmp`.
+This validates evidence, not English semantics: identifying conflicts remains the
+AI's responsibility. Review and implementation use the same AI session.
+
+Fine tuning rejects missing, empty or metadata-only implementation before invoking
+a provider. Both modes retain progress, rgw-ast, native build/test and protected
+publication. Neither mode rewrites `.nut` inputs.
+
+`-l` / `--limit` supplies a positive integer minute expectation to the initial
+prompt for either mode. It asks the AI to avoid unnecessary work while retaining
+all correctness checks. It neither creates a process deadline nor changes the
+independent `--timeout` hard cutoff.
 
 The driver no longer generates source provenance, stages prior binaries, or offers
 inspect/diff. A legacy `.nutshell-provenance.bin` in the selected source triggers
@@ -116,7 +138,7 @@ single filesystem transaction. Source rollback handles binary publication failur
 
 Each attempt may retain source snapshots, `prompt.txt`, `source-context.json`,
 `interpreter.log`, `verification.log`, `build.json`, `progress.json`, and
-`result.json` under `/tmp`. Failure output names the attempt directory. Success
+`result.json` (plus `fine-tune.json` for fine tuning) under `/tmp`. Failure output names the attempt directory. Success
 prints the executable path without requiring the user to inspect build metadata.
 
 Child processes inherit authentication and provider configuration. The driver
@@ -145,6 +167,7 @@ working files by convention; it does not restrict process access to the machine.
 | `internal/compiler/source.go` | Syntax-independent `.nut` discovery and validation |
 | `internal/compiler/provider.go` | Built-in and custom CLI adapters |
 | `internal/compiler/prompt.go` | Shared instructions for compilation agents |
+| `internal/compiler/fine_tune.go` | Required conflict review validation and source diagnostics |
 | `internal/compiler/compiler.go` | Generation, build/test orchestration, result records |
 | `internal/compiler/context.go` | Selected implementation snapshots and seeding |
 | `internal/compiler/export.go` | Source/binary publication, locking, rollback |

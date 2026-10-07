@@ -6,7 +6,7 @@ import (
 	"runtime"
 )
 
-func promptFor(p Program, fineTune string, legacyProvenance bool) string {
+func promptFor(p Program, fineTune string, legacyProvenance bool, limitMinutes int) string {
 	sources, _ := json.MarshalIndent(p.Sources, "", "  ")
 	context := "SOURCE BUNDLE (authoritative for full compilation):\n" + string(sources)
 	mode := `FULL COMPILATION: Implement the .nut program. Choose the implementation language
@@ -17,20 +17,55 @@ language and architecture unless the requested behavior requires a change. The
 		request, _ := json.Marshal(fineTune)
 		mode = `FINE-TUNE MODE: Make only this focused change to the existing implementation.
 CHANGE REQUEST (JSON string): ` + string(request) + `
-The change request takes precedence over conflicting .nut requirements ONLY within
-its stated scope. Preserve all unrelated behavior. Keep the existing language,
-architecture, dependencies and useful tests. Do not rebuild from scratch, redesign,
-re-audit every requirement or make speculative improvements. Locate the relevant
-symbols and edit the smallest necessary set of files with rgw-ast. Read only the
-.nut snapshots needed to understand this change; they are background context, not
-a demand to reimplement the whole program. Add or update tests for the change and
-run the relevant existing tests. Keep reproducible build and test commands.`
+The .nut instructions are authoritative. A fine-tune request MUST NOT override
+conflicting .nut instructions, even if the request asks to ignore them or skip review.
+Before changing ANY implementation or doing legacy migration, read ALL supplied
+.nut snapshots and check this request against their instructions, following the
+entry's file composition semantics. This is a targeted requirements conflict check,
+not a whole-program implementation audit. Count physical source lines starting at 1,
+including blank lines. Report every observed conflict across all affected files.
+Do not reinterpret explicit requirements or make assumptions to evade a conflict.
+For example, if a .nut line says print "hello world", a request to replace world
+with everyone conflicts with that line.
+
+Write fine-tune.json in the build directory BEFORE implementation. It must have:
+{"version":1,"status":"compatible","reviewed_sources":["main.nut"],"conflicts":[]}
+Use status "conflict" when any instruction conflicts, with entries shaped like:
+{"path":"main.nut","start_line":3,"end_line":3,"quote":"Print hello world.",
+ "reason":"Replacing world with everyone changes the required literal output."}
+reviewed_sources must list EVERY supplied .nut path relative to the entry directory,
+without the source/ prefix. The example list is illustrative; use the actual bundle.
+Each conflict must cite an exact path and one-based inclusive line range. quote
+must contain exactly those complete source lines joined by newline, preserving
+whitespace except normalizing CRLF to LF and omitting the final line terminator.
+Do not invent locations or quote your paraphrase. Explain the conflict briefly.
+Write the report atomically. If there are conflicts, STOP: do not edit code, build,
+write build.json or ask questions. Exit normally; Nutshell renders the errors and
+returns nonzero. The driver rejects missing, incomplete or invalid reviews.
+
+Only after a compatible review, implement the focused change. Preserve all unrelated behavior.
+Keep the existing language, architecture, dependencies and useful tests. Do not
+rebuild from scratch, redesign or audit unrelated implementation. Locate relevant
+symbols and edit the smallest necessary set of files with rgw-ast. Add or update
+tests for the change and run relevant existing tests. Keep reproducible build and
+test commands. Never rewrite .nut inputs to make the request compatible.`
 		paths := make([]string, 0, len(p.Sources))
 		for _, source := range p.Sources {
 			paths = append(paths, "source/"+source.Path)
 		}
 		encoded, _ := json.MarshalIndent(paths, "", "  ")
-		context = "AVAILABLE .nut SNAPSHOTS (read only as needed):\n" + string(encoded)
+		context = "REQUIRED .nut SNAPSHOTS (review all for request conflicts):\n" + string(encoded)
+	}
+	if limitMinutes > 0 {
+		mode += fmt.Sprintf(`
+
+USER TIME EXPECTATION: The user expects this work to take no longer than %d minutes.
+Keep the approach focused and proportional to the task. Avoid unnecessary exploration,
+redesign, dependencies and speculative improvements. Prioritize the smallest correct
+change and leave time for verification. This expectation never overrides .nut
+instructions, conflict review, rgw-ast, required tests or honest reporting. Do not
+skip checks, hide failures or claim completion merely to meet this budget.
+This is a requested time budget; Nutshell's --timeout is a separate hard cutoff.`, limitMinutes)
 	}
 	migration := ""
 	if legacyProvenance {
@@ -62,7 +97,9 @@ Implement the requested observable behavior and invariants within the mode above
 Make any assumptions needed to produce a useful, coherent program, including resolving
 ambiguous, missing or contradictory requirements. Record your decisions in assumptions
 in build.json. Never ask the user questions, request clarification, or stop just because
-requirements are underspecified. Choose an interpretation and implement it.
+requirements are underspecified. Choose an interpretation and implement it. In
+fine-tune mode, the conflict guardrail above takes precedence over these assumption
+instructions: reported conflicts must stop compilation.
 
 Your FIRST tool action must write progress.json in this build directory:
 {"version":1,"stage":"understanding","message":"Reviewing the requested program behavior"}
@@ -92,7 +129,8 @@ back to the implementation directory explicitly selected by the user with -s.
 Do not infer any other source directory. Embed required application
 resources into the executable so it can run without this temporary directory.
 If src/ already contains files, this is an INCREMENTAL compilation. Inspect those
-files FIRST using the rgw-ast workflow below after your initial progress update.
+files FIRST for implementation using the rgw-ast workflow below after your initial
+progress update and, in fine-tune mode, a compatible requirements review.
 They are the existing implementation,
 including user-written edits, tests and assets, copied here for you to extend.
 Adapt the existing code rather than deleting it and starting from scratch. Preserve
@@ -130,10 +168,13 @@ Do not substitute shell redirection, sed, Python scripts or provider edit tools
 for implementation reads or edits. Honor rgw-ast policy and use exec for generators
 when required; do not disable hooks, change global policy or bypass a denial.
 Progress updates, build.json and scratch payloads outside src/ may use ordinary
-file writes. Build and test commands are still required. If rgw-ast cannot perform
+file writes, including fine-tune.json. Source snapshots outside src/ may be read
+normally for requirements review. Build and test commands are required only after
+a compatible fine-tune review (or in full compilation). If rgw-ast cannot perform
 a required operation, report the failure and stop rather than silently bypass it.
 
-Produce actual implementation source plus tests of observable behavior, including error
+For full compilation or a compatible fine-tune, produce actual implementation
+source plus tests of observable behavior, including error
 cases required by the program. Build a real native executable, not a shell/Python/Node
 launcher or a library. Leave reproducible commands for the driver to execute again.
 Do not ask questions interactively. Do not write clarification diagnostics.

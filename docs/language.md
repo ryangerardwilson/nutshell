@@ -122,13 +122,15 @@ included as implementation context.
 For a focused edit against that implementation:
 
 ```sh
-ns main.nut -c grok -s ./implementation -o app -ft "Reject negative quantities"
+ns main.nut -c grok -s ./implementation -o app -f "Reject negative quantities"
 ```
 
-The request takes precedence within its scope. The AI is instructed to preserve
-unrelated behavior and read `.nut` context only as needed. Existing implementation
-is required; the source language and architecture stay in place. The compiler still
-builds and tests the result, and leaves your `.nut` files unchanged.
+The `.nut` instructions take precedence. The AI first reviews all supplied `.nut`
+files; a conflicting request fails with file/line diagnostics. To change a required
+behavior, update the `.nut` instructions first. Compatible fixes preserve unrelated
+behavior, language and architecture, and still undergo build/test verification.
+`.nut` inputs are never rewritten by fine tuning. Append `-l 5` to tell the AI that
+you expect completion within five minutes; `--timeout` sets a separate hard cutoff.
 
 The program file is the durable statement of intent. Record a behavior change
 there even if you also fix the generated implementation by hand.
@@ -137,7 +139,9 @@ there even if you also fix the generated implementation by hand.
 
 The compiler does not interview you. Missing details, conflicting requirements,
 and design choices become assumptions in its internal build manifest. If you
-want a particular choice, write it into the program and compile again.
+want a particular choice, write it into the program and compile again. Fine tuning
+is the exception: it must reject conflicts with `.nut` instructions rather than
+resolve them by assumptions.
 
 This makes compilation unattended. It also means you should expect different
 implementations across models and runs. Nutshell does not currently offer

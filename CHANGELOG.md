@@ -3,6 +3,23 @@
 Versions follow Semantic Versioning. Dates use YYYY-MM-DD. The matching Git tag
 has a `v` prefix; published tags are never moved.
 
+## [0.11.0] - 2026-10-08
+
+### Added
+- Required fine-tune conflict reviews across supplied `.nut` files, with validated
+  original source paths, one-based line ranges, quotations and explanations.
+- Missing, incomplete or invalid reviews block builds and publication. Conflicting
+  requests preserve existing source and binary and produce visible errors.
+- `-l` / `--limit` sets a positive integer AI time expectation in minutes, without
+  changing the independent `--timeout` hard deadline or relaxing verification.
+
+### Changed
+- `-f` replaces `-ft`; old invocations fail with migration guidance. The long form
+  remains `--fine-tune`.
+- `.nut` instructions take precedence over fine-tune requests. Update requirements
+  first when intentionally changing specified behavior. Semantic conflict detection
+  remains the AI's judgment; the driver validates report completeness and citations.
+
 ## [0.10.0] - 2026-10-08
 
 ### Added
