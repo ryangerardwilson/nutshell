@@ -164,7 +164,7 @@ func TestIndependentSourceAndBinaryDestinations(t *testing.T) {
 }
 
 func TestContextPrompt(t *testing.T) {
-	message := promptFor(Program{Entry: "main.nut"}, "", false, 0)
+	message := promptFor(Program{Entry: "main.nut"}, "", false)
 	if !strings.Contains(message, "Inspect those\nfiles FIRST") || !strings.Contains(message, "rather than deleting it and starting from scratch") {
 		t.Fatal("context instructions missing")
 	}

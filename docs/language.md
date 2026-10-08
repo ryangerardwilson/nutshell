@@ -129,8 +129,9 @@ The `.nut` instructions take precedence. The AI first reviews all supplied `.nut
 files; a conflicting request fails with file/line diagnostics. To change a required
 behavior, update the `.nut` instructions first. Compatible fixes preserve unrelated
 behavior, language and architecture, and still undergo build/test verification.
-`.nut` inputs are never rewritten by fine tuning. Append `-l 5` to tell the AI that
-you expect completion within five minutes; `--timeout` sets a separate hard cutoff.
+`.nut` inputs are never rewritten by fine tuning. Each run uses a fresh temporary
+workspace with the selected implementation as context. Fine tuning limits scope,
+not duration; `--timeout` sets a hard process cutoff.
 
 The program file is the durable statement of intent. Record a behavior change
 there even if you also fix the generated implementation by hand.

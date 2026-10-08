@@ -6,7 +6,7 @@ import (
 	"runtime"
 )
 
-func promptFor(p Program, fineTune string, legacyProvenance bool, limitMinutes int) string {
+func promptFor(p Program, fineTune string, legacyProvenance bool) string {
 	sources, _ := json.MarshalIndent(p.Sources, "", "  ")
 	context := "SOURCE BUNDLE (authoritative for full compilation):\n" + string(sources)
 	mode := `FULL COMPILATION: Implement the .nut program. Choose the implementation language
@@ -55,17 +55,6 @@ test commands. Never rewrite .nut inputs to make the request compatible.`
 		}
 		encoded, _ := json.MarshalIndent(paths, "", "  ")
 		context = "REQUIRED .nut SNAPSHOTS (review all for request conflicts):\n" + string(encoded)
-	}
-	if limitMinutes > 0 {
-		mode += fmt.Sprintf(`
-
-USER TIME EXPECTATION: The user expects this work to take no longer than %d minutes.
-Keep the approach focused and proportional to the task. Avoid unnecessary exploration,
-redesign, dependencies and speculative improvements. Prioritize the smallest correct
-change and leave time for verification. This expectation never overrides .nut
-instructions, conflict review, rgw-ast, required tests or honest reporting. Do not
-skip checks, hide failures or claim completion merely to meet this budget.
-This is a requested time budget; Nutshell's --timeout is a separate hard cutoff.`, limitMinutes)
 	}
 	migration := ""
 	if legacyProvenance {

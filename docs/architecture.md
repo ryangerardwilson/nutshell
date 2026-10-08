@@ -121,10 +121,10 @@ Fine tuning rejects missing, empty or metadata-only implementation before invoki
 a provider. Both modes retain progress, rgw-ast, native build/test and protected
 publication. Neither mode rewrites `.nut` inputs.
 
-`-l` / `--limit` supplies a positive integer minute expectation to the initial
-prompt for either mode. It asks the AI to avoid unnecessary work while retaining
-all correctness checks. It neither creates a process deadline nor changes the
-independent `--timeout` hard cutoff.
+Every invocation creates a fresh build workspace and uses explicitly selected
+source as context. The driver retains no AI session or build recipe between runs.
+Neither mode injects a user time expectation. `--timeout` controls the hard
+process cutoff independently of fine-tune scope.
 
 The driver no longer generates source provenance, stages prior binaries, or offers
 inspect/diff. A legacy `.nutshell-provenance.bin` in the selected source triggers

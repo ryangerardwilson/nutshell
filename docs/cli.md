@@ -102,7 +102,7 @@ See [hello](../examples/hello/main.nut) and the multi-file
 For a targeted follow-up edit, use existing implementation source:
 
 ```sh
-nutshell main.nut -c grok -o app -s ./src -f "replace x with y" -l 5
+nutshell main.nut -c grok -o app -s ./src -f "replace x with y"
 ns main.nut -c codex -s ./src --fine-tune "Reject negative quantities"
 ```
 
@@ -138,24 +138,14 @@ Semantic conflict detection still depends on the selected AI. Source changes
 during review invalidate diagnostics rather than reporting stale line numbers.
 The former `-ft` flag is rejected with guidance to use `-f` or `--fine-tune`.
 
-## AI time expectation
+Every compilation starts in a fresh private `/tmp` workspace, with implementation
+context copied from the explicitly selected `-s` directory. Fine tuning limits
+scope, not duration. There is no retained AI session or build recipe between runs.
 
-```sh
-ns main.nut -c grok -s ./src -f "Fix the greeting spacing" -l 5
-ns main.nut -c codex -s ./src --limit 10 --timeout 15m
-```
-
-`-l` / `--limit` takes a positive integer number of minutes, such as `5`, not `5m`
-or `1.5`. It works with full compilation and fine tuning, before or after the entry,
-and as `--limit=5`. Missing, zero, negative, nonnumeric or overflowing values fail
-before invoking an AI. Without it, no user time expectation is added to the prompt.
-
-The prompt tells the AI that the user expects work to take no longer than that
-many minutes and asks it to avoid unnecessary complexity. This is a planning
-expectation, not a runtime guarantee. `--timeout` independently controls the hard
-process deadline (default 30 minutes); `-l 5 --timeout 10m` requests five minutes
-but allows the process at most ten. Neither relaxes conflict checks, rgw-ast or
-required build/test verification.
+The former `-l` / `--limit` options are removed. Omit the flag and its value from
+old commands; they fail before starting an AI. `--timeout` controls the hard
+process deadline (default 30 minutes), without adding time-pressure instructions
+to the AI prompt.
 
 Version 0.10.0 removes `inspect`, `diff`, prior-binary context and embedded `.nut`
 provenance. Existing 0.9 source can be reused; the agent is told to remove the old

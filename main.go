@@ -8,7 +8,6 @@ import (
 	"io"
 	"os"
 	"os/signal"
-	"strconv"
 	"strings"
 	"syscall"
 	"time"
@@ -23,13 +22,12 @@ var version = strings.TrimSpace(versionFile)
 
 const help = `nutshell — compile English-first .nut programs with your AI tool
 
-Usage: nutshell [main.nut] -c <name> -s <path> [-o output] [-f "change"] [-l minutes]
-       ns [main.nut] -c <name> -s <path> [-o output] [-f "change"] [-l minutes]
+Usage: nutshell [main.nut] -c <name> -s <path> [-o output] [-f "change"]
+       ns [main.nut] -c <name> -s <path> [-o output] [-f "change"]
 
   -c, --compiler NAME     Entry in compilers.json (required)
   -s, --source PATH       Implementation directory to read and update (required)
   -f, --fine-tune TEXT    Make a focused change to existing -s source
-  -l, --limit MINUTES     Expected AI completion time (positive integer)
   -o, --output PATH       Native executable; defaults to entry without .nut
       --timeout DURATION  Total compilation deadline (default 30m)
   -h, --help              Show help
@@ -47,9 +45,8 @@ First compilation initializes a missing config. Existing entries are preserved.
 
 Fine tuning requires existing source and cannot override .nut instructions.
 Conflicts report source files and line numbers; .nut files remain unchanged.
--l sets an AI expectation; --timeout enforces the actual process deadline.
 
-Example: nutshell main.nut -c grok -o app -s ./src -f "replace x with y" -l 5
+Example: nutshell main.nut -c grok -o app -s ./src -f "replace x with y"
 `
 
 type arguments struct {
@@ -79,11 +76,13 @@ func parse(args []string) (arguments, error) {
 			}
 			key, value, hasValue := strings.Cut(arg, "=")
 			switch key {
+			case "-l", "--limit":
+				return o, fmt.Errorf("%s was removed; omit the time limit and use -f (or --fine-tune) for focused changes", key)
 			case "-ft":
 				return o, fmt.Errorf("-ft was replaced by -f (or --fine-tune)")
 			case "-i", "--interpreter":
 				return o, fmt.Errorf("%s was replaced by -c (or --compiler)", key)
-			case "-c", "--compiler", "-s", "--source", "-o", "--output", "--timeout", "-f", "--fine-tune", "-l", "--limit":
+			case "-c", "--compiler", "-s", "--source", "-o", "--output", "--timeout", "-f", "--fine-tune":
 				if !hasValue {
 					i++
 					if i >= len(args) {
@@ -106,12 +105,6 @@ func parse(args []string) (arguments, error) {
 						return o, fmt.Errorf("%s requires a nonblank change request", key)
 					}
 					o.FineTune = value
-				case "-l", "--limit":
-					minutes, err := strconv.Atoi(value)
-					if err != nil || minutes <= 0 {
-						return o, fmt.Errorf("%s requires a positive integer number of minutes, e.g. -l 5", key)
-					}
-					o.LimitMinutes = minutes
 				case "--timeout":
 					d, err := time.ParseDuration(value)
 					if err != nil || d <= 0 {

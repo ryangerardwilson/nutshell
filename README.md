@@ -150,7 +150,7 @@ for the discovery boundary and ways to make your intent concrete.
 ## Small change? Fine-tune it.
 
 ```sh
-nutshell main.nut -c grok -o app -s ./src -f "replace x with y" -l 5
+nutshell main.nut -c grok -o app -s ./src -f "replace x with y"
 # --fine-tune is the long form; ns works too.
 ```
 
@@ -168,11 +168,11 @@ or edit the `.nut` instructions first. Rejection leaves source and binary intact
 Semantic conflict detection is the AI's judgment; Nutshell validates its reported
 locations and quotations and rejects missing or invalid reviews.
 
-`-l 5` (or `--limit 5`) tells the AI you expect completion within five minutes,
-without unnecessary complexity. It accepts a positive integer number of minutes,
-for full builds or fine tuning. This is an expectation, not a guaranteed deadline;
-`--timeout 5m` sets a hard cutoff. Required checks still apply. The former `-ft`
-flag now reports migration guidance to `-f`.
+Each compile uses a fresh temporary workspace and the source explicitly selected
+with `-s`. Fine tuning scopes the change; it does not promise a completion time.
+The former `-l` / `--limit` options are removed: omit the flag and its value.
+`--timeout` still sets a hard process cutoff. The former `-ft` flag reports
+migration guidance to `-f`.
 
 Binaries carry the application, without Nutshell's source metadata. Version 0.10.0
 removes embedded provenance and the `inspect`/`diff` commands. Keep your `.nut`

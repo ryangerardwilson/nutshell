@@ -5,8 +5,8 @@ installed AI CLI. The driver is Go and uses the standard library. Read README.md
 then docs/architecture.md for the code paths relevant to a change. Source discovery
 is syntax-independent: the AI interprets all file-composition wording. Fine tuning (-f / --fine-tune) targets a requested change against existing -s
 source. All supplied .nut instructions must be reviewed first; conflicts cannot
-be overridden. The driver requires a validated fine-tune.json review. -l / --limit
-sets an AI time expectation in minutes; --timeout remains the hard cutoff.
+be overridden. The driver requires a validated fine-tune.json review. Each run
+uses a fresh temporary workspace; --timeout controls the hard process cutoff.
 Generated executables carry no
 Nutshell provenance resource. Compiler commands are user-owned in XDG
 compilers.json; default-compilers.json is only a first-use template. Do not add

@@ -3,6 +3,17 @@
 Versions follow Semantic Versioning. Dates use YYYY-MM-DD. The matching Git tag
 has a `v` prefix; published tags are never moved.
 
+## [0.13.0] - 2026-10-08
+
+### Removed
+- Removed `-l` / `--limit` and AI time-expectation prompts. Migration: omit the
+  flag and its minute value; old invocations fail with guidance before compilation.
+
+### Unchanged
+- `-f` / `--fine-tune` keeps changes focused and cannot override `.nut` instructions.
+- Each run builds in a fresh temporary workspace using explicit `-s` source context.
+- `--timeout` remains the independent hard process cutoff, defaulting to 30 minutes.
+
 ## [0.12.0] - 2026-10-08
 
 ### Added

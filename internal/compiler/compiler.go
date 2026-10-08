@@ -15,14 +15,13 @@ import (
 )
 
 type Options struct {
-	FineTune     string
-	LimitMinutes int
-	Entry        string
-	Interpreter  string
-	SourceDir    string
-	Output       string
-	Log          io.Writer
-	OnProgress   func(Progress)
+	FineTune    string
+	Entry       string
+	Interpreter string
+	SourceDir   string
+	Output      string
+	Log         io.Writer
+	OnProgress  func(Progress)
 }
 
 type Manifest struct {
@@ -56,9 +55,6 @@ type lockedWriter struct {
 func (w *lockedWriter) Write(p []byte) (int, error) { w.Lock(); defer w.Unlock(); return w.w.Write(p) }
 
 func Compile(ctx context.Context, opts Options) (result Result, err error) {
-	if opts.LimitMinutes < 0 {
-		return result, fmt.Errorf("limit must be a positive integer number of minutes")
-	}
 	if opts.Log == nil {
 		opts.Log = io.Discard
 	}
@@ -127,7 +123,7 @@ func Compile(ctx context.Context, opts Options) (result Result, err error) {
 		return result, err
 	}
 	_, legacyProvenance := baseline.Input.Files[legacyProvenanceResource]
-	prompt := promptFor(p, opts.FineTune, legacyProvenance, opts.LimitMinutes)
+	prompt := promptFor(p, opts.FineTune, legacyProvenance)
 	promptFile := filepath.Join(dir, "prompt.txt")
 	if err = os.WriteFile(promptFile, []byte(prompt), 0600); err != nil {
 		return result, err

@@ -98,17 +98,14 @@ func TestInvalidFineTuneReviews(t *testing.T) {
 	}
 }
 
-func TestTimeExpectationPrompt(t *testing.T) {
+func TestPromptsHaveNoTimeExpectation(t *testing.T) {
 	p := Program{Entry: "main.nut"}
 	for _, request := range []string{"", "fix spacing"} {
-		prompt := promptFor(p, request, false, 5)
-		for _, want := range []string{"no longer than 5 minutes", "separate hard cutoff", "Do not\nskip checks"} {
-			if !strings.Contains(prompt, want) {
-				t.Fatalf("missing %q", want)
+		prompt := promptFor(p, request, false)
+		for _, removed := range []string{"USER TIME EXPECTATION", "time budget", "no longer than"} {
+			if strings.Contains(prompt, removed) {
+				t.Fatalf("prompt contains removed time expectation %q", removed)
 			}
-		}
-		if strings.Contains(promptFor(p, request, false, 0), "USER TIME EXPECTATION") {
-			t.Fatal("invented user time limit")
 		}
 	}
 }

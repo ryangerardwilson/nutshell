@@ -14,7 +14,7 @@ import (
 func TestFineTunePrompt(t *testing.T) {
 	p := Program{Entry: "main.nut", Sources: []Source{{"main.nut", "Print the original greeting."}, {"feature.nut", "Unrelated feature details."}}}
 	request := "replace x with \"y\"; preserve 100%\nand all other behavior"
-	prompt := promptFor(p, request, false, 0)
+	prompt := promptFor(p, request, false)
 	for _, want := range []string{"FINE-TUNE MODE", `replace x with \"y\"; preserve 100%\nand all other behavior`, "source/main.nut", "source/feature.nut", "MUST NOT override", "read ALL supplied", "fine-tune.json", "Preserve all unrelated behavior", "rgw-ast --root src status --json", "build.json"} {
 		if !strings.Contains(prompt, want) {
 			t.Errorf("missing %q", want)
@@ -25,11 +25,11 @@ func TestFineTunePrompt(t *testing.T) {
 			t.Errorf("unexpected %q", unwanted)
 		}
 	}
-	full := promptFor(p, "", false, 0)
+	full := promptFor(p, "", false)
 	if !strings.Contains(full, p.Sources[0].Text) || !strings.Contains(full, "FULL COMPILATION") {
 		t.Fatal("full compilation lost requirements")
 	}
-	migration := promptFor(p, "change greeting", true, 0)
+	migration := promptFor(p, "change greeting", true)
 	if !strings.Contains(migration, "Remove that resource AND") {
 		t.Fatal("missing legacy migration")
 	}
@@ -203,7 +203,7 @@ printf 'unwanted temporary edit' > src/manual.txt
 			if err != nil {
 				t.Fatal(err)
 			}
-			result, err := Compile(context.Background(), Options{Entry: entry, Interpreter: "fake", SourceDir: src, Output: output, FineTune: "replace world with everyone", LimitMinutes: 5})
+			result, err := Compile(context.Background(), Options{Entry: entry, Interpreter: "fake", SourceDir: src, Output: output, FineTune: "replace world with everyone"})
 			if err == nil || result.Status != "failed" {
 				t.Fatalf("%+v %v", result, err)
 			}
@@ -230,8 +230,8 @@ printf 'unwanted temporary edit' > src/manual.txt
 				t.Fatal("changed existing binary")
 			}
 			prompt, err := os.ReadFile(filepath.Join(result.Directory, "prompt.txt"))
-			if err != nil || !strings.Contains(string(prompt), "no longer than 5 minutes") {
-				t.Fatal("provider did not receive time expectation")
+			if err != nil || strings.Contains(string(prompt), "USER TIME EXPECTATION") {
+				t.Fatal("provider prompt missing or contains a removed time expectation")
 			}
 		})
 	}

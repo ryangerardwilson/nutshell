@@ -198,21 +198,6 @@ The driver SHALL require and validate the report before executing declared build
 - **WHEN** the agent implements the focused change
 - **THEN** normal native build/test and publication checks SHALL run.
 
-### Requirement: User-stated AI time budget
-Nutshell SHALL accept -l or --limit with a positive integer number of minutes, before or after the entry and in equals form, for full compilation or fine tuning. Missing, zero, negative, fractional, nonnumeric or overflowing values SHALL fail before invoking an AI. When specified, the initial prompt SHALL tell the AI that the user expects completion in no longer than that many minutes and instruct it to keep work focused and avoid unnecessary complexity while retaining conflict review, correctness, tests and verification. Omitting the flag SHALL omit this expectation. The limit SHALL be a prompt-level expectation, not a guaranteed duration or process deadline; --timeout SHALL retain its independent hard cutoff and default. Help and documentation SHALL distinguish these controls.
-
-#### Scenario: Five-minute expectation
-- **WHEN** the user passes -f "fix spacing" -l 5
-- **THEN** the AI prompt SHALL state an expectation of no longer than 5 minutes while retaining authoritative .nut conflict checks and build/test requirements.
-
-#### Scenario: Independent hard timeout
-- **WHEN** the user supplies -l 5 --timeout 10m
-- **THEN** the prompt SHALL carry a five-minute expectation and the process deadline SHALL be ten minutes.
-
-#### Scenario: Invalid budget
-- **WHEN** -l has no value or a value such as 0, -1, 1.5 or five
-- **THEN** parsing SHALL fail with guidance to supply a positive integer number of minutes without invoking an AI.
-
 ### Requirement: XDG compiler configuration
 Nutshell SHALL use $XDG_CONFIG_HOME/nutshell/compilers.json when XDG_CONFIG_HOME is absolute, otherwise ~/.config/nutshell/compilers.json. The version-1 JSON object SHALL contain a compilers map of arbitrary names to command argv arrays and prompt transports: stdin, file using {prompt_file}, or argument using {prompt}. Optional unsafe_args and {unsafe_args} SHALL remain supported for existing adapter configuration, but no mandatory provider-specific permission flag SHALL be inferred. Commands SHALL run directly without implicit shell, tilde or environment expansion. Executables SHALL resolve from PATH or an absolute path, before invoking an AI. Invalid configuration and unknown names SHALL fail with the config path and actionable guidance; removed starter names SHALL NOT fall back to hidden defaults.
 
@@ -242,3 +227,18 @@ The first compilation or config init SHALL create a missing configuration using 
 - **GIVEN** XDG_CONFIG_HOME names an absolute directory
 - **WHEN** configuration is initialized or read
 - **THEN** Nutshell SHALL use that root; an unset, empty or relative value SHALL use ~/.config instead.
+
+### Requirement: Compilation without time-pressure prompts
+Nutshell SHALL NOT offer a prompt-level AI time budget or inject user time expectations into compilation prompts. Former -l and --limit flags, including equals forms and invocations before or after the entry, SHALL fail before invoking an AI with guidance to remove the flag. The independent --timeout hard cutoff and its default SHALL remain unchanged. Full compilation and fine tuning SHALL continue to use fresh private temporary build workspaces with explicitly selected -s source context; no persistent AI session or retained build recipe SHALL be added by this change. Fine tuning SHALL retain its focused scope and authoritative .nut conflict checks.
+
+#### Scenario: Removed time expectation
+- **WHEN** a user supplies -l 2 or --limit=2
+- **THEN** parsing SHALL fail with guidance to remove the option without invoking an AI.
+
+#### Scenario: Focused fresh build
+- **WHEN** a user compiles with -f and existing -s source
+- **THEN** the AI SHALL receive the focused change and conflict-review instructions in a fresh temporary build workspace without an injected time expectation.
+
+#### Scenario: Explicit hard cutoff
+- **WHEN** a user supplies --timeout 10m without removed options
+- **THEN** the process deadline SHALL be ten minutes and the AI prompt SHALL carry no time-pressure instruction.

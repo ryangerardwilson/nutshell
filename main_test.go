@@ -78,28 +78,35 @@ func TestFineTuneArguments(t *testing.T) {
 	}
 }
 
-func TestTimeLimitArguments(t *testing.T) {
-	for _, flags := range [][]string{{"-l", "5"}, {"--limit", "5"}, {"-l=5"}, {"--limit=5"}} {
+func TestRemovedTimeLimitsFailBeforeCompilation(t *testing.T) {
+	t.Setenv("PATH", "")
+	for _, flags := range [][]string{{"-l", "5"}, {"--limit", "5"}, {"-l=5"}, {"--limit=5"}, {"-l"}, {"--limit="}} {
 		for _, before := range []bool{true, false} {
-			args := []string{"main.nut", "-c", "grok", "-s", "src", "-f", "fix spacing", "--timeout", "10m"}
+			args := []string{"main.nut", "-c", "grok", "-s", "src", "-f", "fix spacing"}
 			if before {
 				args = append(append([]string{}, flags...), args...)
 			} else {
 				args = append(args, flags...)
 			}
-			o, err := parse(args)
-			if err != nil || o.LimitMinutes != 5 || o.Timeout != 10*time.Minute {
-				t.Fatalf("%v: %+v %v", args, o, err)
+			var out, errs bytes.Buffer
+			code := execute(context.Background(), args, &out, &errs)
+			if code != 2 || out.Len() != 0 || !strings.Contains(errs.String(), "was removed; omit the time limit") {
+				t.Fatalf("%v: %d %s %s", args, code, out.String(), errs.String())
 			}
 		}
 	}
-	o, err := parse([]string{"-c", "grok", "-s", "src", "-l", "5"})
-	if err != nil || o.FineTune != "" || o.LimitMinutes != 5 || o.Timeout != 30*time.Minute {
-		t.Fatalf("%+v %v", o, err)
-	}
-	for _, flags := range [][]string{{"-l"}, {"-l="}, {"-l", "0"}, {"-l", "-1"}, {"--limit", "1.5"}, {"-l", "5m"}, {"-l", "five"}, {"-l", "9999999999999999999999999"}} {
-		if _, err := parse(append([]string{"-c", "grok", "-s", "src"}, flags...)); err == nil {
-			t.Fatalf("accepted %v", flags)
+}
+
+func TestTimeoutRemainsIndependent(t *testing.T) {
+	for _, fineTune := range [][]string{nil, {"-f", "fix spacing"}} {
+		args := append([]string{"main.nut", "-c", "grok", "-s", "src"}, fineTune...)
+		o, err := parse(args)
+		if err != nil || o.Timeout != 30*time.Minute {
+			t.Fatalf("default timeout: %+v %v", o, err)
+		}
+		o, err = parse(append(args, "--timeout", "10m"))
+		if err != nil || o.Timeout != 10*time.Minute {
+			t.Fatalf("explicit timeout: %+v %v", o, err)
 		}
 	}
 }
